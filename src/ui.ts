@@ -1,9 +1,8 @@
-import { mount } from 'svelte'
-import './styles.css'
-import App from './App.svelte'
+import { mount } from "svelte";
 
-const app = mount(App, {
-	target: document.getElementById('app')!,
-})
+import Ui from "./ui.svelte";
+import "./ui.css";
 
-export default app
+export default mount(Ui, {
+  target: document.getElementById("app")!,
+});

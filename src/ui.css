@@ -1,0 +1,19 @@
+:root {
+  font-family: Inter, system-ui, Helvetica, Arial, sans-serif;
+  font-display: optional;
+  font-size: 16px;
+}
+
+html {
+  background-color: var(--figma-color-bg);
+  color: var(--figma-color-text);
+}
+
+body {
+  font-size: 12px;
+  margin: 0;
+}
+
+* {
+  box-sizing: border-box;
+}

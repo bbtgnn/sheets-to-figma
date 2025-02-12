@@ -1,13 +1,27 @@
-// Read the docs https://plugma.dev/docs
-
+import { config } from "./logic/config";
 import { propertiesHandlers } from "./logic/properties";
-import type { Message } from "./types";
+import { setupUiMessagesHandlers, sendMessageToUi } from "./logic/messaging";
+
+//
 
 export default function () {
-  figma.showUI(__html__, { width: 300, height: 260, themeColors: true });
+  figma.showUI(__html__, {
+    width: config.viewport.width,
+    height: config.viewport.height,
+    themeColors: true,
+  });
 
-  figma.ui.onmessage = async (message: Message) => {
-    if (message.type === "MERGE_DATA") {
+  /* Sending */
+
+  figma.on("selectionchange", () => {
+    const selection = figma.currentPage.selection[0] as SceneNode | undefined;
+    sendMessageToUi({ type: "ITEM_SELECTED", data: selection });
+  });
+
+  /* Receiving */
+
+  setupUiMessagesHandlers({
+    MERGE_DATA: async ({ data }) => {
       const selection = figma.currentPage.selection[0];
       if (!selection) return;
 
@@ -17,7 +31,7 @@ export default function () {
       const startX = selection.x + increaseX;
       const startY = selection.y;
 
-      const copiesPromises = message.data.map(async (item, index) => {
+      const copiesPromises = data.map(async (item, index) => {
         const copy = selection.clone();
         copy.x = startX + index * increaseX;
         copy.y = startY;
@@ -44,18 +58,8 @@ export default function () {
       const copies = await Promise.all(copiesPromises);
       figma.viewport.scrollAndZoomIntoView(copies);
       figma.currentPage.selection = copies;
-    }
-  };
 
-  function postNodeCount() {
-    const nodeCount = figma.currentPage.selection.length;
-    figma.currentPage.selection[0];
-
-    figma.ui.postMessage({
-      type: "POST_NODE_COUNT",
-      count: nodeCount,
-    });
-  }
-
-  figma.on("selectionchange", postNodeCount);
+      sendMessageToUi({ type: "MERGE_COMPLETE", data: true });
+    },
+  });
 }
