@@ -20,8 +20,8 @@
   },
   "plugma": {
     "manifest": {
-      "id": "data-merge",
-      "name": "data-merge",
+      "id": "sheet-to-figma",
+      "name": "Sheet to Figma",
       "main": "src/main.ts",
       "ui": "src/ui.ts",
       "editorType": [
