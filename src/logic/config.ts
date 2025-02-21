@@ -1,6 +1,6 @@
 export const config = {
   viewport: {
-    width: 300,
-    height: 260,
+    width: 600,
+    height: 300,
   },
 };

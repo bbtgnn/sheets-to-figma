@@ -36,7 +36,7 @@ export function setupUiMessagesHandlers(handlers: UiMessageHandlers) {
 
 //
 
-type ItemSelectedMessage = BaseMessage<"ITEM_SELECTED", SceneNode | undefined>;
+type ItemSelectedMessage = BaseMessage<"ITEM_SELECTED", string | undefined>;
 
 type MergeCompleteMessage = BaseMessage<"MERGE_COMPLETE", true>;
 

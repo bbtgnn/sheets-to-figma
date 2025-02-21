@@ -15,7 +15,7 @@ export default function () {
 
   figma.on("selectionchange", () => {
     const selection = figma.currentPage.selection[0] as SceneNode | undefined;
-    sendMessageToUi({ type: "ITEM_SELECTED", data: selection });
+    sendMessageToUi({ type: "ITEM_SELECTED", data: selection?.name });
   });
 
   /* Receiving */
