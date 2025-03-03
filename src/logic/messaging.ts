@@ -1,3 +1,5 @@
+import type { SheetData } from "./fetch";
+
 type BaseMessage<Name extends string, Data> = {
   type: Name;
   data: Data;
@@ -5,12 +7,24 @@ type BaseMessage<Name extends string, Data> = {
 
 //
 
+export type Selection = {
+  id: string;
+  name: string;
+};
+
 type MergeDataMessage = BaseMessage<
   "MERGE_DATA",
-  Record<string, Record<string, unknown>>[]
+  { selection: string; data: SheetData }
 >;
 
-type UiMessage = MergeDataMessage;
+type GetSelectionMessage = BaseMessage<"GET_SELECTION", undefined>;
+
+type StoreSpreadsheetUrlMessage = BaseMessage<"STORE_SPREADSHEET_URL", string>;
+
+type UiMessage =
+  | MergeDataMessage
+  | GetSelectionMessage
+  | StoreSpreadsheetUrlMessage;
 
 export function sendMessageToFigma(message: UiMessage) {
   parent.postMessage(
@@ -36,11 +50,34 @@ export function setupUiMessagesHandlers(handlers: UiMessageHandlers) {
 
 //
 
-type ItemSelectedMessage = BaseMessage<"ITEM_SELECTED", string | undefined>;
+type ItemSelectedMessage = BaseMessage<
+  "ITEM_SELECTED",
+  { selection: Selection } | undefined
+>;
+
+type InvalidSelectionMessage = BaseMessage<"INVALID_SELECTION", undefined>;
 
 type MergeCompleteMessage = BaseMessage<"MERGE_COMPLETE", true>;
 
-type FigmaMessage = ItemSelectedMessage | MergeCompleteMessage;
+type MergeErrorMessage = BaseMessage<"MERGE_ERROR", Error>;
+
+type RestoreSpreadsheetUrlMessage = BaseMessage<
+  "RESTORE_SPREADSHEET_URL",
+  string
+>;
+
+type GetSelectionResponseMessage = BaseMessage<
+  "GET_SELECTION_RESPONSE",
+  Selection
+>;
+
+type FigmaMessage =
+  | ItemSelectedMessage
+  | MergeCompleteMessage
+  | MergeErrorMessage
+  | InvalidSelectionMessage
+  | GetSelectionResponseMessage
+  | RestoreSpreadsheetUrlMessage;
 
 export function sendMessageToUi(message: FigmaMessage) {
   figma.ui.postMessage(message);

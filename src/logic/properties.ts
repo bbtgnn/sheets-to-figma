@@ -25,6 +25,12 @@ export const propertiesHandlers: Record<
     const rotation = z.number().safeParse(value);
     if (rotation.success && "rotation" in node) node.rotation = rotation.data;
   },
+  text: async (node, value) => {
+    if (!("characters" in node)) return;
+    await figma.loadFontAsync(node.fontName as FontName);
+    const text = z.string().safeParse(value);
+    if (text.success) node.characters = text.data;
+  },
   fill: async (node, value) => {
     if (!("fills" in node)) return;
     // TODO - somehow it doesn't work, check better

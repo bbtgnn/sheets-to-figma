@@ -76,17 +76,23 @@ function analyzeSheetData(
   return items.map(nestifyObject);
 }
 
-export async function getSheetData(url: string, gid = 0) {
-  const id = getSheetIdFromUrl(url);
-  if (!id) throw new Error("Invalid URL");
+export type SheetData = Record<string, Record<string, unknown>>[];
 
-  const rawData = await fetchSheetData(id, gid);
-  const sheetData = extractSheetData(rawData);
-  const parsed = sheetDataSchema.safeParse(sheetData);
-  //   console.log(sheetData);
-  if (!parsed.success) throw new Error("Invalid data");
+export async function getSheetData(
+  url: string,
+  gid = 0
+): Promise<SheetData | Error> {
+  try {
+    const id = getSheetIdFromUrl(url);
+    if (!id) throw new Error("Invalid URL");
 
-  return analyzeSheetData(parsed.data);
+    const rawData = await fetchSheetData(id, gid);
+    const sheetData = extractSheetData(rawData);
+    const parsed = sheetDataSchema.safeParse(sheetData);
+    if (!parsed.success) throw new Error("Invalid data");
+
+    return analyzeSheetData(parsed.data);
+  } catch (error) {
+    return new Error("Invalid data source");
+  }
 }
-
-export type SheetData = Awaited<ReturnType<typeof getSheetData>>;
