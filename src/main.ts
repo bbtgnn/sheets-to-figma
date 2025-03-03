@@ -16,23 +16,6 @@ export default function () {
     themeColors: true,
   });
 
-  //
-
-  async function restoreSpreadsheetUrl() {
-    const maybeSpreadsheetUrl = await figma.clientStorage.getAsync(
-      "spreadsheetUrl"
-    );
-
-    if (maybeSpreadsheetUrl) {
-      sendMessageToUi({
-        type: "RESTORE_SPREADSHEET_URL",
-        data: maybeSpreadsheetUrl,
-      });
-    }
-  }
-
-  figma.on("run", restoreSpreadsheetUrl);
-
   /* Sending */
 
   figma.on("selectionchange", () => {

@@ -84,6 +84,7 @@ export async function getSheetData(
 ): Promise<SheetData | Error> {
   try {
     const id = getSheetIdFromUrl(url);
+    console.log(url);
     if (!id) throw new Error("Invalid URL");
 
     const rawData = await fetchSheetData(id, gid);

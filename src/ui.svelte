@@ -30,6 +30,7 @@
   let spreadsheetUrl = $state<string>();
 
   $effect(() => {
+    console.log("spreadsheetUrl", spreadsheetUrl);
     onInputChange(spreadsheetUrl);
   });
 
