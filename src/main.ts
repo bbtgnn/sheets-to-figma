@@ -1,13 +1,44 @@
 import { config } from "./logic/config";
 import { propertiesHandlers } from "./logic/properties";
-import {
-  setupUiMessagesHandlers,
-  sendMessageToUi,
-  type Selection,
-} from "./logic/messaging";
-import { z } from "zod";
+import { setupUiMessagesHandlers, sendMessageToUi } from "./logic/messaging";
+import type { Selection } from "./logic/types";
+/* Comlink setup */
 
-//
+import * as Comlink from "comlink";
+import { uiEndpoint } from "figma-comlink";
+import type { UiApi } from "./ui.svelte";
+
+// Exposing
+
+const spreadsheetUrlKey = "spreadsheetUrl";
+
+const api = {
+  foo() {
+    return "bar";
+  },
+  getCurrentSelection() {
+    return getSelection();
+  },
+
+  async storeSpreadsheetUrl(url: string) {
+    await figma.clientStorage.setAsync(spreadsheetUrlKey, url);
+  },
+  async getSpreadsheetUrl() {
+    return await figma.clientStorage.getAsync(spreadsheetUrlKey);
+  },
+
+  mergeData(nodeId: string, data: object) {},
+};
+
+export type PluginApi = typeof api;
+
+Comlink.expose(api, uiEndpoint());
+
+// Receiving
+
+const ui = Comlink.wrap<UiApi>(uiEndpoint());
+
+/* Main */
 
 export default function () {
   figma.showUI(__html__, {
@@ -16,20 +47,8 @@ export default function () {
     themeColors: true,
   });
 
-  /* Sending */
-
-  figma.on("selectionchange", () => {
-    const selection = getSelection();
-    if (!selection) {
-      sendMessageToUi({ type: "INVALID_SELECTION", data: undefined });
-    } else {
-      sendMessageToUi({
-        type: "ITEM_SELECTED",
-        data: {
-          selection,
-        },
-      });
-    }
+  figma.on("selectionchange", async () => {
+    await ui.setSelection(getSelection());
   });
 
   /* Receiving */
@@ -111,19 +130,10 @@ export default function () {
   });
 }
 
-function getSelection(): Selection | undefined {
-  const selection = figma.currentPage.selection;
-  if (selection.length == 0 || selection.length > 1) {
-    return undefined;
-  } else {
-    const selectedNode = selection[0];
-    if (selectedNode.type != "FRAME") {
-      return undefined;
-    } else {
-      return {
-        id: selectedNode.id,
-        name: selectedNode.name,
-      };
-    }
-  }
+function getSelection(): Selection {
+  return figma.currentPage.selection.map((node) => ({
+    id: node.id,
+    name: node.name,
+    type: node.type,
+  }));
 }

@@ -48,7 +48,9 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.0.7",
+    "comlink": "^4.4.2",
     "effect": "^3.12.11",
+    "figma-comlink": "^0.0.3",
     "nanoid": "^5.0.9",
     "nestify-anything": "^3.0.2",
     "tailwindcss": "^4.0.7",

@@ -1,38 +1,77 @@
+<script module lang="ts">
+  import type { Selection } from "./logic/types";
+
+  export type UiApi = {
+    test(): void;
+    setSelection(selection: Selection): void;
+  };
+</script>
+
 <script lang="ts">
   import {
     sendMessageToFigma,
     setupFigmaMessagesHandlers,
-    type Selection,
   } from "./logic/messaging";
   import { config } from "./logic/config";
   import { getSheetData } from "./logic/fetch";
   import type { SheetData } from "./logic/fetch";
   import { onMount } from "svelte";
-  import { z } from "zod";
 
-  /* App state*/
+  /* Comlink setup */
+
+  import * as Comlink from "comlink";
+  import { pluginEndpoint } from "figma-comlink";
+  import type { PluginApi } from "./main";
+  import packageJson from "../package.json";
+  import { ok, err } from "true-myth/result";
+
+  const pluginEnd = pluginEndpoint({
+    pluginId: packageJson.plugma.manifest.id,
+  });
+
+  // Receiving
+
+  const plugin = Comlink.wrap<PluginApi>(pluginEnd);
+
+  // Exposing
+
+  const api: UiApi = {
+    test() {
+      console.log("connection_success");
+    },
+    setSelection(selection) {
+      appState.selection = selection;
+    },
+  };
+  Comlink.expose(api, pluginEnd);
+
+  /* App state */
 
   class AppState {
+    selection = $state<Selection>([]);
+    selectedNode = $derived.by(() => {
+      if (this.selection.length === 1) {
+        return ok(this.selection[0]);
+      } else if (this.selection.length === 0) {
+        return err(new Error("No selection"));
+      } else {
+        return err(new Error("Multiple selection"));
+      }
+    });
+
+    sheetUrl = $state<string>();
     sheetData = $state<SheetData | Error>();
     sheetDataLoading = $state(false);
-    selection = $state<Selection>();
     mergeLoading = $state<boolean | Error>(false);
 
     canMerge = $derived(
-      !(this.sheetData instanceof Error) && this.selection !== undefined
+      !(this.sheetData instanceof Error) && this.selectedNode.isOk
     );
   }
 
   const appState = $state(new AppState());
 
   /* Getting data */
-
-  let spreadsheetUrl = $state<string>();
-
-  $effect(() => {
-    console.log("spreadsheetUrl", spreadsheetUrl);
-    onInputChange(spreadsheetUrl);
-  });
 
   async function onInputChange(newUrl: string | undefined) {
     if (!newUrl) return;
@@ -68,33 +107,9 @@
 
   /* Receiving */
 
-  onMount(() => {
-    sendMessageToFigma({
-      type: "GET_SELECTION",
-      data: undefined,
-    });
-  });
-
-  setupFigmaMessagesHandlers({
-    GET_SELECTION_RESPONSE: ({ data }) => {
-      appState.selection = data;
-    },
-    ITEM_SELECTED: ({ data }) => {
-      appState.selection = data?.selection;
-    },
-    MERGE_COMPLETE: () => {
-      appState.mergeLoading = false;
-    },
-    MERGE_ERROR: ({ data }) => {
-      appState.mergeLoading = data;
-    },
-    INVALID_SELECTION: () => {
-      appState.selection = undefined;
-    },
-    RESTORE_SPREADSHEET_URL: ({ data }) => {
-      console.log("RESTORE_SPREADSHEET_URL", data);
-      spreadsheetUrl = data;
-    },
+  onMount(async () => {
+    appState.selection = await plugin.getCurrentSelection();
+    appState.sheetUrl = await plugin.getSpreadsheetUrl();
   });
 </script>
 
@@ -103,28 +118,25 @@
   style:height="{config.viewport.height}px"
   class="bg-blue-100 divide-y divide-blue-200"
 >
-  <!-- <pre>{JSON.stringify(selection, null, 2)}</pre>
-  <hr /> -->
-
   <div class="flex items-center gap-4 p-4">
     {@render number(1)}
     <div class="space-y-2 grow">
       <p>Enter the URL of your google spreadsheet</p>
       <input
         type="url"
-        bind:value={spreadsheetUrl}
+        bind:value={appState.sheetUrl}
         class="border w-full bg-white rounded-xl p-2 py-3 border-blue-200"
         placeholder="https://..."
       />
       <div>
         <div>
-          {#if appState.sheetDataLoading}
+          <!-- {#if appState.sheetDataLoading}
             <p>🔄 Loading...</p>
           {:else if appState.sheetData instanceof Error}
             <p>❌ {appState.sheetData.message}</p>
           {:else}
             <p>✅ Data loaded successfully!</p>
-          {/if}
+          {/if} -->
         </div>
       </div>
     </div>
@@ -134,10 +146,10 @@
     {@render number(2)}
     <div>
       <p>Select a frame you want to copy and fill</p>
-      {#if appState.selection}
-        <p>✅ Selected frame: {appState.selection.name}</p>
+      {#if appState.selectedNode.isOk}
+        <p>✅ Selected frame: {appState.selectedNode.value.name}</p>
       {:else}
-        <p>❌ Invalid selection: no frame selected</p>
+        <p>❌ Invalid selection: {appState.selectedNode.error.message}</p>
       {/if}
     </div>
   </div>

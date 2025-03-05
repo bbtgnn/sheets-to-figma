@@ -11,9 +11,15 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.0.7
         version: 4.0.7(vite@5.4.14(lightningcss@1.29.1))
+      comlink:
+        specifier: ^4.4.2
+        version: 4.4.2
       effect:
         specifier: ^3.12.11
         version: 3.12.11
+      figma-comlink:
+        specifier: ^0.0.3
+        version: 0.0.3(comlink@4.4.2)
       nanoid:
         specifier: ^5.0.9
         version: 5.0.9
@@ -621,6 +627,9 @@ packages:
   color-name@1.1.4:
     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
 
+  comlink@4.4.2:
+    resolution: {integrity: sha512-OxGdvBmJuNKSCMO4NTl1L47VRp6xn2wG4F/2hYzB6tiCb709otOxtEYCSvK80PtjODfXXZu8ds+Nw5kVCjqd2g==}
+
   commander@12.1.0:
     resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
     engines: {node: '>=18'}
@@ -748,6 +757,11 @@ packages:
     peerDependenciesMeta:
       picomatch:
         optional: true
+
+  figma-comlink@0.0.3:
+    resolution: {integrity: sha512-eao1e61YcoB01E5Q1Og7xfH3i9yhyOjKUA3fTpuWrvvCtQEOfob7lP2FoUQBCdgAcehUi33WbOFZ6f5mTn5ERA==}
+    peerDependencies:
+      comlink: ^4.3.1
 
   fill-range@7.1.1:
     resolution: {integrity: sha512-YsGpe3WHLK8ZYi4tWDg2Jy3ebRz2rXowDxnld4bkQB00cc/1Zw9AWnC0i9ztDJitivtQvaI9KaLyKrc+hBW0yg==}
@@ -1677,6 +1691,8 @@ snapshots:
 
   color-name@1.1.4: {}
 
+  comlink@4.4.2: {}
+
   commander@12.1.0: {}
 
   content-disposition@0.5.4:
@@ -1819,6 +1835,10 @@ snapshots:
       pure-rand: 6.1.0
 
   fdir@6.4.3: {}
+
+  figma-comlink@0.0.3(comlink@4.4.2):
+    dependencies:
+      comlink: 4.4.2
 
   fill-range@7.1.1:
     dependencies:
