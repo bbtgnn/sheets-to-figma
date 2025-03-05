@@ -57,4 +57,15 @@ export const propertiesHandlers: Record<
       node.fills = [figma.util.solidPaint(fill.data)];
     }
   },
+
+  instance: async (node, value) => {
+    if (!(node.type == "INSTANCE")) return;
+    const componentName = z.string().safeParse(value);
+    if (!componentName.success) return;
+    const componentNode = figma.currentPage.findOne(
+      (node) => node.name == componentName.data && node.type == "COMPONENT"
+    );
+    if (!(componentNode?.type == "COMPONENT")) return;
+    node.swapComponent(componentNode);
+  },
 };
