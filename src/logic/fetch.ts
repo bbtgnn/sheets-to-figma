@@ -81,27 +81,38 @@ function parseStringifiedRawSheetData(
     });
 }
 
-export type SheetRecord = Record<string, unknown>;
+const parsedSheetDataSchema = z.array(
+  z.record(z.string(), z.record(z.string(), z.unknown()))
+);
+
+export type ParsedSheetData = z.infer<typeof parsedSheetDataSchema>;
 
 type Column = z.infer<typeof columnSchema>;
 
-function rawSheetDataToRecords(data: RawSheetData): SheetRecord[] {
+function rawSheetDataToRecords(
+  data: RawSheetData
+): Result.Result<ParsedSheetData, Error> {
   const columns: Column[] = data.table.cols.map((col) => ({
     ...col,
     label: String.isNonEmpty(col.label.trim())
       ? col.label.trim()
       : `empty_${nanoid(5)}`,
   }));
-  return data.table.rows
+
+  const sheetData = data.table.rows
     .map((row) =>
       columns.map((col, index) => Tuple.make(col.label, row.c.at(index)?.v))
     )
     .map(Object.fromEntries)
     .map(nestifyObject);
+
+  const parsed = parsedSheetDataSchema.safeParse(sheetData);
+  if (!parsed.success) return err(new Error(parsed.error.message));
+  return ok(parsed.data);
 }
 
 export function getSheetRecords(sheetId: string, gid = 0) {
   return fetchStringifiedRawSheetData(sheetId, gid)
     .andThen((data) => Task.fromResult(parseStringifiedRawSheetData(data)))
-    .map(rawSheetDataToRecords);
+    .andThen((data) => Task.fromResult(rawSheetDataToRecords(data)));
 }

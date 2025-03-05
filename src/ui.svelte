@@ -3,7 +3,7 @@
 
   export type UiApi = {
     setSelection(selection: Selection): void;
-    notifyFailure(error: Error): void;
+    notifyMergeFailures(failures: string[]): void;
   };
 </script>
 
@@ -34,8 +34,8 @@
     setSelection(selection) {
       app.selection = selection;
     },
-    notifyFailure(error) {
-      app.mergeError = error;
+    notifyMergeFailures(failures) {
+      app.mergeErrors = failures;
     },
   };
   Comlink.expose(api, pluginEnd);
@@ -43,6 +43,8 @@
   /* App state */
 
   class App {
+    /* Inputs */
+
     selection = $state<Selection>([]);
     selectedNode = $derived.by(() => {
       if (this.selection.length === 1) {
@@ -57,47 +59,62 @@
     sheetUrl = $state("");
     sheetId = $derived(getSheetIdFromUrl(this.sheetUrl));
 
+    constructor() {
+      onMount(async () => {
+        app.selection = await plugin.getCurrentSelection();
+        app.sheetUrl = await plugin.getSpreadsheetUrl();
+      });
+    }
+
+    /* Merging */
+
     canStartMerge = $derived(this.sheetId.isOk && this.selectedNode.isOk);
 
+    mergeErrors = $state<string[]>([]);
     mergeLoading = $state(false);
-    mergeError = $state<Error>();
 
     async mergeData() {
-      this.mergeLoading = true;
-      this.mergeError = undefined;
-
       if (!this.sheetId.isOk || !this.selectedNode.isOk) return;
+
+      this.mergeErrors = [];
+      this.mergeLoading = true;
 
       const sheetId = this.sheetId.value;
       const records = await getSheetRecords(sheetId);
 
       if (records.isErr) {
-        this.mergeError = records.error;
+        this.mergeErrors = [records.error.message];
+        this.mergeLoading = false;
         return;
       }
 
       await plugin.storeSpreadsheetUrl(this.sheetUrl);
 
-      const mergeResult = await plugin.mergeData(
+      const failures = await plugin.mergeData(
         this.selectedNode.value.id,
         records.value
       );
-      console.log(mergeResult);
+
+      if (failures) this.mergeErrors = failures;
+      this.mergeLoading = false;
+    }
+
+    hasErrors() {
+      return this.mergeErrors.length > 0;
     }
 
     clearError() {
-      this.mergeError = undefined;
+      this.mergeErrors = [];
+    }
+
+    showAllErrorsUi = $state(false);
+
+    toggleShowAllErrorsUi() {
+      this.showAllErrorsUi = !this.showAllErrorsUi;
     }
   }
 
   const app = $state(new App());
-
-  /* Receiving */
-
-  onMount(async () => {
-    app.selection = await plugin.getCurrentSelection();
-    app.sheetUrl = await plugin.getSpreadsheetUrl();
-  });
 </script>
 
 <div
@@ -156,21 +173,35 @@
     class={[
       "px-4 grow flex items-center bg-blue-200",
       {
-        "bg-red-600 justify-between": app.mergeError,
-        "justify-center": !app.mergeError,
+        "bg-yellow-100 justify-between": app.hasErrors(),
+        "justify-center": !app.hasErrors(),
       },
     ]}
   >
-    {#if app.mergeError}
-      <p class="text-white">
-        <span class="font-bold">⚠️ Error:</span>
-        {app.mergeError.message}
+    {#if app.hasErrors()}
+      <p class="text-yellow-700">
+        <span class="font-bold">⚠️ Warning:</span>
+        {#if app.mergeErrors.length > 1}
+          {app.mergeErrors.length} errors occurred
+        {:else}
+          {app.mergeErrors[0]}
+        {/if}
       </p>
+
       <button
-        class="bg-white/40 hover:bg-white/60 size-8 rounded-full hover:cursor-pointer"
+        class="text-yellow-700 underline hover:cursor-pointer"
+        onclick={() => app.toggleShowAllErrorsUi()}
+      >
+        <p class="text-yellow-700">
+          {app.showAllErrorsUi ? "Hide errors" : "Show errors"}
+        </p>
+      </button>
+
+      <button
+        class="bg-yellow-200 hover:bg-yellow-300 size-8 rounded-full hover:cursor-pointer"
         onclick={() => app.clearError()}
       >
-        <p class="text-white">X</p>
+        <p class="text-yellow-700">X</p>
       </button>
     {:else}
       <p class="text-sm">
@@ -186,6 +217,36 @@
     {/if}
   </div>
 </div>
+
+{#if app.showAllErrorsUi}
+  <div
+    style:width="{config.viewport.width}px"
+    style:height="{config.viewport.height}px"
+    class="bg-yellow-100 flex flex-col fixed top-0 left-0"
+  >
+    <div
+      class="p-4 flex items-center justify-between border-b border-yellow-300"
+    >
+      <p class="text-yellow-700">
+        <span class="font-bold">⚠️ Warning:</span>
+        {app.mergeErrors.length} errors occurred
+      </p>
+
+      <button
+        class="bg-yellow-200 hover:bg-yellow-300 size-8 rounded-full hover:cursor-pointer"
+        onclick={() => app.toggleShowAllErrorsUi()}
+      >
+        <p class="text-yellow-700">X</p>
+      </button>
+    </div>
+
+    <div class="p-4 space-y-1">
+      {#each app.mergeErrors as error}
+        <p class="text-yellow-700">{error}</p>
+      {/each}
+    </div>
+  </div>
+{/if}
 
 {#snippet number(n: number)}
   <div

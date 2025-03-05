@@ -1,32 +1,30 @@
 import { z } from "zod";
 import { isWebUri } from "valid-url";
 
-type MaybePromise<T> = T | Promise<T>;
-
 export const propertiesHandlers: Record<
   string,
-  (node: SceneNode, value: unknown) => MaybePromise<void>
+  (node: SceneNode, value: unknown) => Promise<void>
 > = {
-  x: (node, value) => {
+  x: async (node, value) => {
     const x = z.number().safeParse(value);
     if (x.success) node.x = x.data;
   },
-  y: (node, value) => {
+  y: async (node, value) => {
     const y = z.number().safeParse(value);
     if (y.success) node.y = y.data;
   },
 
-  width: (node, value) => {
+  width: async (node, value) => {
     const width = z.number().safeParse(value);
     if (width.success && "resize" in node) node.resize(width.data, node.height);
   },
-  height: (node, value) => {
+  height: async (node, value) => {
     const height = z.number().safeParse(value);
     if (height.success && "resize" in node)
       node.resize(node.width, height.data);
   },
 
-  rotation: (node, value) => {
+  rotation: async (node, value) => {
     const rotation = z.number().safeParse(value);
     if (rotation.success && "rotation" in node) node.rotation = rotation.data;
   },

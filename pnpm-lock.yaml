@@ -14,6 +14,9 @@ importers:
       '@types/valid-url':
         specifier: ^1.0.7
         version: 1.0.7
+      big-integer:
+        specifier: ^1.6.52
+        version: 1.6.52
       comlink:
         specifier: ^4.4.2
         version: 4.4.2
@@ -592,6 +595,10 @@ packages:
   axobject-query@4.1.0:
     resolution: {integrity: sha512-qIj0G9wZbMGNLjLmg1PT6v2mE9AH2zlnADJD/2tC6E00hgmhUOfEB6greHPAfLRSufHqROIUTkw6E+M3lH0PTQ==}
     engines: {node: '>= 0.4'}
+
+  big-integer@1.6.52:
+    resolution: {integrity: sha512-QxD8cf2eVqJOOz63z6JIN9BzvVs/dlySa5HGSBH5xtR8dPteIRQnBxxKqkNTiT6jbDTF6jAfrd4oMcND9RGbQg==}
+    engines: {node: '>=0.6'}
 
   body-parser@1.20.3:
     resolution: {integrity: sha512-7rAxByjUMqQ3/bHJy7D6OGXvx/MMc4IqBn/X0fcM1QUcAItpZrBEYhWGem+tzXH90c+G01ypMcYJBO9Y30203g==}
@@ -1661,6 +1668,8 @@ snapshots:
   array-flatten@1.1.1: {}
 
   axobject-query@4.1.0: {}
+
+  big-integer@1.6.52: {}
 
   body-parser@1.20.3:
     dependencies:

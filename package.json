@@ -49,6 +49,7 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.0.7",
     "@types/valid-url": "^1.0.7",
+    "big-integer": "^1.6.52",
     "comlink": "^4.4.2",
     "effect": "^3.12.11",
     "figma-comlink": "^0.0.3",
