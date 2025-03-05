@@ -3,7 +3,6 @@
 
   export type UiApi = {
     setSelection(selection: Selection): void;
-    notifyMergeFailures(failures: string[]): void;
   };
 </script>
 
@@ -19,6 +18,7 @@
   import { pluginEndpoint } from "figma-comlink";
   import type { PluginApi } from "./main";
   import packageJson from "../package.json";
+  import { sendCloseMessage } from "./logic/close";
 
   const pluginEnd = pluginEndpoint({
     pluginId: packageJson.plugma.manifest.id,
@@ -33,9 +33,6 @@
   const api: UiApi = {
     setSelection(selection) {
       app.selection = selection;
-    },
-    notifyMergeFailures(failures) {
-      app.mergeErrors = failures;
     },
   };
   Comlink.expose(api, pluginEnd);
@@ -97,6 +94,8 @@
 
       if (failures) this.mergeErrors = failures;
       this.mergeLoading = false;
+
+      sendCloseMessage();
     }
 
     hasErrors() {

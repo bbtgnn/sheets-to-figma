@@ -13,6 +13,7 @@ import * as Comlink from "comlink";
 import { uiEndpoint } from "figma-comlink";
 import type { UiApi } from "./ui.svelte";
 import { pipe, Effect as _ } from "effect";
+import { setupCloseMessageListener } from "./logic/close";
 
 // Exposing
 
@@ -84,14 +85,9 @@ const api = {
     figma.currentPage.selection = copies;
 
     const operations = result.map(({ edits }) => edits).flat();
-
-    await pipe(
+    return await pipe(
       _.partition(operations, (o) => o),
-      _.map(([failures, _]) => {
-        if (failures.length > 0) {
-          ui.notifyMergeFailures(failures.map((f) => f.message));
-        }
-      }),
+      _.map(([failures, _]) => failures.map((f) => f.message)),
       _.runPromise
     );
   },
@@ -117,6 +113,8 @@ export default function () {
   figma.on("selectionchange", async () => {
     await ui.setSelection(getSelection());
   });
+
+  setupCloseMessageListener();
 }
 
 /* Utils */
