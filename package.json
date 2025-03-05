@@ -20,8 +20,8 @@
   },
   "plugma": {
     "manifest": {
-      "id": "sheet-to-figma",
-      "name": "Sheet to Figma",
+      "id": "spreadsheet-to-figma",
+      "name": "Spreadsheet to Figma",
       "main": "src/main.ts",
       "ui": "src/ui.ts",
       "editorType": [
@@ -48,11 +48,17 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.0.7",
+    "@types/valid-url": "^1.0.7",
+    "big-integer": "^1.6.52",
+    "comlink": "^4.4.2",
     "effect": "^3.12.11",
+    "figma-comlink": "^0.0.3",
     "nanoid": "^5.0.9",
     "nestify-anything": "^3.0.2",
+    "runed": "^0.23.4",
     "tailwindcss": "^4.0.7",
     "true-myth": "^8.5.0",
+    "valid-url": "^1.0.9",
     "zod": "^3.24.2"
   }
 }

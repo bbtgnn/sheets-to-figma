@@ -1,42 +1,47 @@
 import { z } from "zod";
+import { isWebUri } from "valid-url";
 
 export const propertiesHandlers: Record<
   string,
-  (node: SceneNode, value: unknown) => void | Promise<void>
+  (node: SceneNode, value: unknown) => Promise<void>
 > = {
-  x: (node, value) => {
+  x: async (node, value) => {
     const x = z.number().safeParse(value);
     if (x.success) node.x = x.data;
   },
-  y: (node, value) => {
+  y: async (node, value) => {
     const y = z.number().safeParse(value);
     if (y.success) node.y = y.data;
   },
-  width: (node, value) => {
+
+  width: async (node, value) => {
     const width = z.number().safeParse(value);
     if (width.success && "resize" in node) node.resize(width.data, node.height);
   },
-  height: (node, value) => {
+  height: async (node, value) => {
     const height = z.number().safeParse(value);
     if (height.success && "resize" in node)
       node.resize(node.width, height.data);
   },
-  rotation: (node, value) => {
+
+  rotation: async (node, value) => {
     const rotation = z.number().safeParse(value);
     if (rotation.success && "rotation" in node) node.rotation = rotation.data;
   },
+
   text: async (node, value) => {
     if (!("characters" in node)) return;
     await figma.loadFontAsync(node.fontName as FontName);
     const text = z.string().safeParse(value);
     if (text.success) node.characters = text.data;
   },
+
   fill: async (node, value) => {
     if (!("fills" in node)) return;
-    // TODO - somehow it doesn't work, check better
-    const fill = z.string().safeParse(value); //.url().safeParse(value);
-    console.log(fill.data);
-    if (fill.data?.startsWith("http")) {
+    const fill = z.string().safeParse(value);
+    if (!fill.success) return;
+
+    if (isWebUri(fill.data)) {
       try {
         const image = await figma.createImageAsync(fill.data);
         node.fills = [
@@ -46,5 +51,21 @@ export const propertiesHandlers: Record<
         console.error(error);
       }
     }
+
+    const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+    if (hexColorRegex.test(fill.data)) {
+      node.fills = [figma.util.solidPaint(fill.data)];
+    }
+  },
+
+  instance: async (node, value) => {
+    if (!(node.type == "INSTANCE")) return;
+    const componentName = z.string().safeParse(value);
+    if (!componentName.success) return;
+    const componentNode = figma.currentPage.findOne(
+      (node) => node.name == componentName.data && node.type == "COMPONENT"
+    );
+    if (!(componentNode?.type == "COMPONENT")) return;
+    node.swapComponent(componentNode);
   },
 };
