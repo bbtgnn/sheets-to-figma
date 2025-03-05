@@ -2,20 +2,16 @@
   import type { Selection } from "./logic/types";
 
   export type UiApi = {
-    test(): void;
     setSelection(selection: Selection): void;
+    notifyFailure(error: Error): void;
   };
 </script>
 
 <script lang="ts">
-  import {
-    sendMessageToFigma,
-    setupFigmaMessagesHandlers,
-  } from "./logic/messaging";
   import { config } from "./logic/config";
-  import { getSheetData } from "./logic/fetch";
-  import type { SheetData } from "./logic/fetch";
+  import { getSheetIdFromUrl, getSheetRecords } from "./logic/fetch";
   import { onMount } from "svelte";
+  import { ok, err } from "true-myth/result";
 
   /* Comlink setup */
 
@@ -23,7 +19,6 @@
   import { pluginEndpoint } from "figma-comlink";
   import type { PluginApi } from "./main";
   import packageJson from "../package.json";
-  import { ok, err } from "true-myth/result";
 
   const pluginEnd = pluginEndpoint({
     pluginId: packageJson.plugma.manifest.id,
@@ -36,18 +31,18 @@
   // Exposing
 
   const api: UiApi = {
-    test() {
-      console.log("connection_success");
-    },
     setSelection(selection) {
-      appState.selection = selection;
+      app.selection = selection;
+    },
+    notifyFailure(error) {
+      app.mergeError = error;
     },
   };
   Comlink.expose(api, pluginEnd);
 
   /* App state */
 
-  class AppState {
+  class App {
     selection = $state<Selection>([]);
     selectedNode = $derived.by(() => {
       if (this.selection.length === 1) {
@@ -59,85 +54,73 @@
       }
     });
 
-    sheetUrl = $state<string>();
-    sheetData = $state<SheetData | Error>();
-    sheetDataLoading = $state(false);
-    mergeLoading = $state<boolean | Error>(false);
+    sheetUrl = $state("");
+    sheetId = $derived(getSheetIdFromUrl(this.sheetUrl));
 
-    canMerge = $derived(
-      !(this.sheetData instanceof Error) && this.selectedNode.isOk
-    );
-  }
+    canStartMerge = $derived(this.sheetId.isOk && this.selectedNode.isOk);
 
-  const appState = $state(new AppState());
+    mergeLoading = $state(false);
+    mergeError = $state<Error>();
 
-  /* Getting data */
+    async mergeData() {
+      this.mergeLoading = true;
+      this.mergeError = undefined;
 
-  async function onInputChange(newUrl: string | undefined) {
-    if (!newUrl) return;
-    appState.sheetDataLoading = true;
-    appState.sheetData = await getSheetData(newUrl, 0);
-    appState.sheetDataLoading = false;
-    if (!(appState.sheetData instanceof Error) && Boolean(appState.sheetData)) {
-      sendMessageToFigma({
-        type: "STORE_SPREADSHEET_URL",
-        data: newUrl,
-      });
+      if (!this.sheetId.isOk || !this.selectedNode.isOk) return;
+
+      const sheetId = this.sheetId.value;
+      const records = await getSheetRecords(sheetId);
+
+      if (records.isErr) {
+        this.mergeError = records.error;
+        return;
+      }
+
+      await plugin.storeSpreadsheetUrl(this.sheetUrl);
+
+      const mergeResult = await plugin.mergeData(
+        this.selectedNode.value.id,
+        records.value
+      );
+      console.log(mergeResult);
+    }
+
+    clearError() {
+      this.mergeError = undefined;
     }
   }
 
-  /* Merging */
-
-  async function onClick() {
-    if (
-      appState.sheetData instanceof Error ||
-      !appState.sheetData ||
-      !appState.selection
-    )
-      return;
-    appState.mergeLoading = true;
-    sendMessageToFigma({
-      type: "MERGE_DATA",
-      data: {
-        selection: appState.selection.id,
-        data: $state.snapshot(appState.sheetData),
-      },
-    });
-  }
+  const app = $state(new App());
 
   /* Receiving */
 
   onMount(async () => {
-    appState.selection = await plugin.getCurrentSelection();
-    appState.sheetUrl = await plugin.getSpreadsheetUrl();
+    app.selection = await plugin.getCurrentSelection();
+    app.sheetUrl = await plugin.getSpreadsheetUrl();
   });
 </script>
 
 <div
   style:width="{config.viewport.width}px"
   style:height="{config.viewport.height}px"
-  class="bg-blue-100 divide-y divide-blue-200"
+  class="bg-blue-100 divide-y divide-blue-200 flex flex-col"
 >
   <div class="flex items-center gap-4 p-4">
     {@render number(1)}
     <div class="space-y-2 grow">
-      <p>Enter the URL of your google spreadsheet</p>
+      <p class="font-medium">Enter the URL of your google spreadsheet</p>
       <input
         type="url"
-        bind:value={appState.sheetUrl}
+        bind:value={app.sheetUrl}
         class="border w-full bg-white rounded-xl p-2 py-3 border-blue-200"
         placeholder="https://..."
       />
       <div>
-        <div>
-          <!-- {#if appState.sheetDataLoading}
-            <p>🔄 Loading...</p>
-          {:else if appState.sheetData instanceof Error}
-            <p>❌ {appState.sheetData.message}</p>
-          {:else}
-            <p>✅ Data loaded successfully!</p>
-          {/if} -->
-        </div>
+        {#if app.sheetId.isOk}
+          <p class="text-green-600">✅ URL is valid!</p>
+        {:else}
+          <p class="text-red-600">❌ URL is invalid!</p>
+        {/if}
       </div>
     </div>
   </div>
@@ -145,39 +128,63 @@
   <div class="flex items-center gap-4 p-4">
     {@render number(2)}
     <div>
-      <p>Select a frame you want to copy and fill</p>
-      {#if appState.selectedNode.isOk}
-        <p>✅ Selected frame: {appState.selectedNode.value.name}</p>
+      <p class="font-medium">Select a frame you want to copy and fill</p>
+      {#if app.selectedNode.isOk}
+        <p class="text-green-600">
+          ✅ Selected frame:
+          <span class="font-bold">{app.selectedNode.value.name}</span>
+        </p>
       {:else}
-        <p>❌ Invalid selection: {appState.selectedNode.error.message}</p>
+        <p class="text-red-600">
+          ❌ Invalid selection: {app.selectedNode.error.message}
+        </p>
       {/if}
     </div>
   </div>
 
   <div class="p-4">
-    {#if appState.canMerge}
-      <button
-        class="bg-orange-500 w-full text-white rounded-full p-4 hover:bg-orange-600 hover:cursor-pointer"
-        onclick={onClick}>Merge that stuff!</button
-      >
-    {/if}
+    <button
+      class="bg-orange-500 w-full text-white rounded-full p-4 not-disabled:hover:bg-orange-600 hover:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+      onclick={() => app.mergeData()}
+      disabled={!app.canStartMerge}
+    >
+      Merge that stuff!
+    </button>
+  </div>
 
-    {#if appState.mergeLoading === true}
-      <p>Loading...</p>
-    {:else if appState.mergeLoading instanceof Error}
-      <p>{appState.mergeLoading.message}</p>
+  <div
+    class={[
+      "px-4 grow flex items-center bg-blue-200",
+      {
+        "bg-red-600 justify-between": app.mergeError,
+        "justify-center": !app.mergeError,
+      },
+    ]}
+  >
+    {#if app.mergeError}
+      <p class="text-white">
+        <span class="font-bold">⚠️ Error:</span>
+        {app.mergeError.message}
+      </p>
+      <button
+        class="bg-white/40 hover:bg-white/60 size-8 rounded-full hover:cursor-pointer"
+        onclick={() => app.clearError()}
+      >
+        <p class="text-white">X</p>
+      </button>
+    {:else}
+      <p class="text-sm">
+        Made with ❤️ by
+        <a
+          href="https://bbtgnn.net"
+          class="underline hover:bg-white"
+          target="_blank"
+        >
+          Giovanni Abbatepaolo
+        </a>
+      </p>
     {/if}
   </div>
-  <!-- 
-
-
-  {#if appState == "ready"}
-    <button onclick={onClick}>Merge that stuff!</button>
-  {/if}
-
-  {#if appState == "loading"}
-    <div class="loading">Loading...</div>
-  {/if} -->
 </div>
 
 {#snippet number(n: number)}

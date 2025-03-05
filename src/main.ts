@@ -1,12 +1,14 @@
 import { config } from "./logic/config";
 import { propertiesHandlers } from "./logic/properties";
-import { setupUiMessagesHandlers, sendMessageToUi } from "./logic/messaging";
 import type { Selection } from "./logic/types";
+import type { SheetRecord } from "./logic/fetch";
+
 /* Comlink setup */
 
 import * as Comlink from "comlink";
 import { uiEndpoint } from "figma-comlink";
 import type { UiApi } from "./ui.svelte";
+// import { pipe, Effect as _, Either } from "effect";
 
 // Exposing
 
@@ -27,7 +29,71 @@ const api = {
     return await figma.clientStorage.getAsync(spreadsheetUrlKey);
   },
 
-  mergeData(nodeId: string, data: object) {},
+  async mergeData(nodeId: string, data: SheetRecord[]) {
+    // const selectedNode = figma.currentPage.findOne((node) => node.id == nodeId);
+    // if (!selectedNode) return;
+    // const parentNode = selectedNode.parent;
+    // if (!parentNode) return;
+    // const parentHasAutoLayout =
+    //   parentNode.type == "FRAME" && Boolean(parentNode.inferredAutoLayout);
+    // const result = _.validateAll(data, (item, index) => {
+    //   const copy = selectedNode.clone();
+    //   parentNode.appendChild(copy);
+    //   if (!parentHasAutoLayout) {
+    //     const increaseX = selectedNode.width + 20;
+    //     const startX = selectedNode.x + increaseX;
+    //     const startY = selectedNode.y;
+    //     copy.x = startX + index * increaseX;
+    //     copy.y = startY;
+    //   }
+    //   const nodesToEdit: SceneNode[] = [];
+    //   if (copy.name in item) nodesToEdit.push(copy);
+    //   if ("findAll" in copy)
+    //     nodesToEdit.push(...copy.findAll((node) => node.name in item));
+    //   const operations = _.validateAll(nodesToEdit, (node) =>
+    //     pipe(
+    //       _.fromNullable(item[node.name]),
+    //       _.flatMap((data) => {
+    //         if (typeof data === "object" && data !== null)
+    //           return _.succeed(data);
+    //         else
+    //           return _.fail(
+    //             new Error(`Node properties are not an object for ${node.name}`)
+    //           );
+    //       }),
+    //       _.map(Object.entries),
+    //       _.flatMap((properties) =>
+    //         _.validateAll(properties, ([propertyName, propertyValue]) =>
+    //           pipe(
+    //             _.fromNullable(propertiesHandlers[propertyName]),
+    //             _.flatMap((handler) =>
+    //               _.tryPromise({
+    //                 try: () => handler(node, propertyValue) as Promise<void>,
+    //                 catch: () =>
+    //                   new Error(`Error setting property ${propertyName} `),
+    //               })
+    //             )
+    //           )
+    //         )
+    //       )
+    //     )
+    //   );
+    //   return operations.pipe(_.map(() => copy as SceneNode));
+    // });
+    // const effect = result.pipe(
+    //   _.either,
+    //   _.andThen((result) => {
+    //     if (Either.isRight(result)) {
+    //       figma.viewport.scrollAndZoomIntoView(result.right);
+    //       figma.currentPage.selection = result.right;
+    //       figma.closePlugin();
+    //     } else {
+    //       ui.notifyFailure(result.left.map((e) => e.flat()).flat()[0]);
+    //     }
+    //   })
+    // );
+    // await _.runPromiseExit(effect);
+  },
 };
 
 export type PluginApi = typeof api;
@@ -49,84 +115,6 @@ export default function () {
 
   figma.on("selectionchange", async () => {
     await ui.setSelection(getSelection());
-  });
-
-  /* Receiving */
-
-  setupUiMessagesHandlers({
-    GET_SELECTION: async () => {
-      sendMessageToUi({
-        type: "GET_SELECTION_RESPONSE",
-        data: figma.currentPage.selection[0],
-      });
-    },
-    STORE_SPREADSHEET_URL: async ({ data }) => {
-      await figma.clientStorage.setAsync("spreadsheetUrl", data);
-    },
-    MERGE_DATA: async ({ data }) => {
-      try {
-        const selectedNode = figma.currentPage.findOne(
-          (node) => node.id == data.selection
-        );
-
-        if (!selectedNode) throw new Error("Selected node not found");
-
-        const parentIsFrameAndHasAutoLayout =
-          selectedNode.parent?.type == "FRAME" &&
-          Boolean(selectedNode.parent?.inferredAutoLayout);
-
-        const parentWithAutoLayout = parentIsFrameAndHasAutoLayout
-          ? selectedNode.parent
-          : undefined;
-
-        const copiesPromises = data.data.map(async (item, index) => {
-          const copy = selectedNode.clone();
-
-          if (!parentIsFrameAndHasAutoLayout) {
-            const increaseX = selectedNode.width + 20;
-            const startX = selectedNode.x + increaseX;
-            const startY = selectedNode.y;
-
-            copy.x = startX + index * increaseX;
-            copy.y = startY;
-          } else if (parentWithAutoLayout) {
-            parentWithAutoLayout.appendChild(copy);
-          }
-
-          if (copy.type == "FRAME") {
-            for (const [nodeName, nodeProperties] of Object.entries(item)) {
-              const items = copy.findAll((node) => node.name === nodeName);
-
-              for (const item of items) {
-                for (const [propertyName, propertyValue] of Object.entries(
-                  nodeProperties
-                )) {
-                  try {
-                    await propertiesHandlers[propertyName](item, propertyValue);
-                  } catch (error) {
-                    console.log(item.name, propertyName, propertyValue);
-                    console.error(error);
-                  }
-                }
-              }
-            }
-          }
-
-          return copy;
-        });
-
-        const copies = await Promise.all(copiesPromises);
-        figma.viewport.scrollAndZoomIntoView(copies);
-        figma.currentPage.selection = copies;
-
-        figma.closePlugin();
-      } catch (error) {
-        sendMessageToUi({
-          type: "MERGE_ERROR",
-          data: new Error("Merge error"),
-        });
-      }
-    },
   });
 }
 

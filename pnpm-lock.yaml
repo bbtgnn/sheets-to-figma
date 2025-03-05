@@ -11,6 +11,9 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.0.7
         version: 4.0.7(vite@5.4.14(lightningcss@1.29.1))
+      '@types/valid-url':
+        specifier: ^1.0.7
+        version: 1.0.7
       comlink:
         specifier: ^4.4.2
         version: 4.4.2
@@ -26,12 +29,18 @@ importers:
       nestify-anything:
         specifier: ^3.0.2
         version: 3.0.2
+      runed:
+        specifier: ^0.23.4
+        version: 0.23.4(svelte@5.19.10)
       tailwindcss:
         specifier: ^4.0.7
         version: 4.0.7
       true-myth:
         specifier: ^8.5.0
         version: 8.5.0
+      valid-url:
+        specifier: ^1.0.9
+        version: 1.0.9
       zod:
         specifier: ^3.24.2
         version: 3.24.2
@@ -543,6 +552,9 @@ packages:
 
   '@types/estree@1.0.6':
     resolution: {integrity: sha512-AYnb1nQyY49te+VRAVgmzfcgjYS91mY5P0TKUDCLEM+gNnA+3T6rWITXRLYCpahpqSQbN5cE+gHpnPyXjHWxcw==}
+
+  '@types/valid-url@1.0.7':
+    resolution: {integrity: sha512-tgsWVG80dM5PVEBSbXUttPJTBCOo0IKbBh4R4z/SHsC5C81A3aaUH4fsbj+JYk7fopApU/Mao1c0EWTE592TSg==}
 
   accepts@1.3.8:
     resolution: {integrity: sha512-PYAthTa2m2VKxuvSD3DPC/Gy+U+sOA1LAuT8mkmRuvw+NACSaeXEQ+NHcVF7rONl6qcaxV3Uuemwawk+7+SJLw==}
@@ -1076,6 +1088,11 @@ packages:
     resolution: {integrity: sha512-540WwVDOMxA6dN6We19EcT9sc3hkXPw5mzRNGM3FkdN/vtE9NFvj5lFAPNwUDmJjXidm3v7TC1cTE7t17Ulm1Q==}
     engines: {node: '>=0.12.0'}
 
+  runed@0.23.4:
+    resolution: {integrity: sha512-9q8oUiBYeXIDLWNK5DfCWlkL0EW3oGbk845VdKlPeia28l751VpfesaB/+7pI6rnbx1I6rqoZ2fZxptOJLxILA==}
+    peerDependencies:
+      svelte: ^5.7.0
+
   rxjs@7.8.1:
     resolution: {integrity: sha512-AA3TVj+0A2iuIoQkWEK/tqFjBq2j+6PO6Y0zJcvzLAFhEFIO3HL0vls9hWLncZbAAbK0mar7oZ4V079I/qPMxg==}
 
@@ -1207,6 +1224,9 @@ packages:
   uuid@10.0.0:
     resolution: {integrity: sha512-8XkAphELsDnEGrDxUOHB3RGvXz6TeuYSGEZBOjtTtPm2lwhGBjLgOzLHB63IUWfBpNucQjND6d3AOudO+H3RWQ==}
     hasBin: true
+
+  valid-url@1.0.9:
+    resolution: {integrity: sha512-QQDsV8OnSf5Uc30CKSwG9lnhMPe6exHtTXLRYX8uMwKENy640pU+2BgBL0LRbDh/eYRahNCS7aewCx0wf3NYVA==}
 
   vary@1.1.2:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
@@ -1612,6 +1632,8 @@ snapshots:
   '@tsconfig/svelte@5.0.4': {}
 
   '@types/estree@1.0.6': {}
+
+  '@types/valid-url@1.0.7': {}
 
   accepts@1.3.8:
     dependencies:
@@ -2143,6 +2165,11 @@ snapshots:
 
   run-async@3.0.0: {}
 
+  runed@0.23.4(svelte@5.19.10):
+    dependencies:
+      esm-env: 1.2.2
+      svelte: 5.19.10
+
   rxjs@7.8.1:
     dependencies:
       tslib: 2.8.1
@@ -2293,6 +2320,8 @@ snapshots:
   utils-merge@1.0.1: {}
 
   uuid@10.0.0: {}
+
+  valid-url@1.0.9: {}
 
   vary@1.1.2: {}
 
