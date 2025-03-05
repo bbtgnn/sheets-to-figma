@@ -55,6 +55,7 @@ const api = {
         copy.y = startY;
       }
 
+      // TODO - First swap instance, then apply edits
       const edits = Object.entries(copyEdits)
         .map(([nodeName, nodeEdits]) => {
           let nodeToEdit: SceneNode | null = null;
