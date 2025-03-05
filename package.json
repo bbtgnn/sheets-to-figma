@@ -38,7 +38,8 @@
           "ws://localhost:9001"
         ]
       }
-    }
+    },
+    "pluginVersion": "1"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
