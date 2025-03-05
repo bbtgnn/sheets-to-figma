@@ -1,51 +1,30 @@
-# data-merge
+Sync content from Google Sheets directly into your Figma file.
 
-## Quickstart
+Step 1
+Prepare your figma design. Aptly name your layers, cause they will be referenced by name in your spreadsheet!
 
-This plugin was created with [Plugma](https://github.com/gavinmcfarland/plugma) using the [Svelte](https://svelte.dev/) framework.
+Step 2
+Prepare your google spreadsheet:
+reserve first row for headings
+each row will be a copy of the design
 
-### Requirements
+Each column name should be: layer_name.layer_property (examples: rectangle.fill, client.text)
 
--   [Node.js](https://nodejs.org/en)
--   [Figma desktop app](https://www.figma.com/downloads/)
+Available properties:
+x : number
+y : number
+width : number
+height: number
+rotation: number
+fill : image url or hex color
+instance : component name
+text: string
 
-### Install and Import
+Step 3
+Make the spreadsheet public and copy the url
 
-1. Install the dependencies and watch for changes while developing:
-
-    ```bash
-    npm install
-    npm run dev
-    ```
-
-2. Open the Figma desktop app and import the plugin:
-
-    - Open a file in Figma.
-    - Search for "Import plugin from manifest..." using the [Quick Actions](https://help.figma.com/hc/en-us/articles/360040328653-Use-shortcuts-and-quick-actions#Use_quick_actions) bar.
-    - Choose the `manifest.json` file from the `dist` folder.
-
-3. Manage `manifest` details from inside `package.json`.
-
-### Browser Preview
-
-Run this command to preview your plugin in the browser during development.
-
-```bash
-npm run preview
-```
-
-_Make sure the plugin is open in the Figma desktop app._
-
-### Before Publishing
-
-Before publishing your plugin, make sure to create a build. If not, it will still point to the dev server and won't work properly for users.
-
-```bash
-npm run build
-```
-
-Now you can publish the plugin from the Figma desktop app.
-
-### Advanced
-
-See the [Plugma docs](https://plugma.dev/docs) for further information.
+Step 4
+Open the plugin
+Paste the url
+Select the layer
+Smash that big orange button!

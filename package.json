@@ -20,10 +20,11 @@
   },
   "plugma": {
     "manifest": {
-      "id": "spreadsheet-to-figma",
+      "id": "1479187866024923348",
       "name": "Spreadsheet to Figma",
       "main": "src/main.ts",
       "ui": "src/ui.ts",
+      "documentAccess": "dynamic-page",
       "editorType": [
         "figma",
         "figjam"
