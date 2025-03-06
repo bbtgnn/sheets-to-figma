@@ -8,7 +8,11 @@
 
 <script lang="ts">
   import { config } from "./logic/config";
-  import { getSheetIdFromUrl, getSheetRecords } from "./logic/fetch";
+  import {
+    getSheetGidFromUrl,
+    getSheetIdFromUrl,
+    getSheetRecords,
+  } from "./logic/fetch";
   import { onMount } from "svelte";
   import { ok, err } from "true-myth/result";
 
@@ -77,7 +81,8 @@
       this.mergeLoading = true;
 
       const sheetId = this.sheetId.value;
-      const records = await getSheetRecords(sheetId);
+      const gid = getSheetGidFromUrl(this.sheetUrl);
+      const records = await getSheetRecords(sheetId, gid.unwrapOr(0));
 
       if (records.isErr) {
         this.mergeErrors = [records.error.message];

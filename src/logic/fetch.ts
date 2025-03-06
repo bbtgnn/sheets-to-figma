@@ -47,6 +47,11 @@ export function getSheetIdFromUrl(url: string) {
   return ok(maybeId);
 }
 
+export function getSheetGidFromUrl(url: string) {
+  const urlObj = new URL(url);
+  return Maybe.of(urlObj.searchParams.get("gid")).map(Number);
+}
+
 function fetchStringifiedRawSheetData(id: string, gid = 0) {
   const apiUrl = `https://corsproxy.io/?url=https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json&tq&gid=${gid}`;
   return Task.fromPromise(
