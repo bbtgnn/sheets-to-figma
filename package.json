@@ -39,7 +39,7 @@
         ]
       }
     },
-    "pluginVersion": "7"
+    "pluginVersion": "8"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
