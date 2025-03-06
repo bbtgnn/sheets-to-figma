@@ -48,7 +48,7 @@ export function getSheetIdFromUrl(url: string) {
 }
 
 function fetchStringifiedRawSheetData(id: string, gid = 0) {
-  const apiUrl = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json&tq&gid=${gid}`;
+  const apiUrl = `https://corsproxy.io/?url=https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json&tq&gid=${gid}`;
   return Task.fromPromise(
     fetch(apiUrl),
     () => new Error("Data fetch error")
