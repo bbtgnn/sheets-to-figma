@@ -60,6 +60,8 @@
     sheetUrl = $state("");
     sheetId = $derived(getSheetIdFromUrl(this.sheetUrl));
 
+    spaceBetweenItems = $state(false);
+
     constructor() {
       onMount(async () => {
         app.selection = await plugin.getCurrentSelection();
@@ -94,7 +96,8 @@
 
       const failures = await plugin.mergeData(
         this.selectedNode.value.id,
-        records.value
+        records.value,
+        this.spaceBetweenItems
       );
 
       if (failures) this.mergeErrors = failures;
@@ -124,7 +127,7 @@
 <div
   style:width="{config.viewport.width}px"
   style:height="{config.viewport.height}px"
-  class="bg-blue-100 divide-y divide-blue-200 flex flex-col"
+  class="bg-blue-100 divide-y divide-blue-200 flex flex-col select-none"
 >
   <div class="flex items-center gap-4 p-4">
     {@render number(1)}
@@ -133,7 +136,7 @@
       <input
         type="url"
         bind:value={app.sheetUrl}
-        class="border w-full bg-white rounded-xl p-2 py-3 border-blue-200"
+        class="border w-full bg-white rounded-xl p-2 py-3 border-blue-200 select-auto"
         placeholder="https://..."
       />
       <div>
@@ -160,6 +163,17 @@
           ❌ Invalid selection: {app.selectedNode.error.message}
         </p>
       {/if}
+    </div>
+  </div>
+
+  <div class="flex items-center gap-4 p-4">
+    {@render number(3)}
+    <div>
+      <p class="font-medium">Options</p>
+      <label class="flex items-center gap-1.5">
+        <input type="checkbox" bind:checked={app.spaceBetweenItems} />
+        <p>Space between items</p>
+      </label>
     </div>
   </div>
 

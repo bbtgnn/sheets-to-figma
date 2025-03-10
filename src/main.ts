@@ -5,7 +5,8 @@ import "./utils/bigint-polyfill";
 import { config } from "./logic/config";
 import { propertiesHandlers } from "./logic/properties";
 import type { Selection } from "./logic/types";
-import type { ParsedSheetData } from "./logic/fetch";
+import type { SheetRecords } from "./logic/fetch";
+import { Record, String } from "effect";
 
 /* Comlink setup */
 
@@ -14,6 +15,7 @@ import { uiEndpoint } from "figma-comlink";
 import type { UiApi } from "./ui.svelte";
 import { pipe, Effect as _ } from "effect";
 import { setupCloseMessageListener } from "./logic/close";
+import { nestifyObject } from "nestify-anything";
 
 // Exposing
 
@@ -34,7 +36,12 @@ const api = {
     return await figma.clientStorage.getAsync(spreadsheetUrlKey);
   },
 
-  async mergeData(nodeId: string, data: ParsedSheetData) {
+  async mergeData(
+    nodeId: string,
+    data: SheetRecords,
+    spaceBetweenItems: boolean
+  ) {
+    // Selection validation
     const selectedNode = figma.currentPage.findOne((node) => node.id == nodeId);
     if (!selectedNode) return;
 
@@ -43,11 +50,31 @@ const api = {
     const parentHasAutoLayout =
       parentNode.type == "FRAME" && Boolean(parentNode.inferredAutoLayout);
 
-    const result = data.map((copyEdits, index) => {
+    // Data validation
+    // We get only the records that have a single dot in the key
+    // a.k.a two levels of nesting
+
+    const cleanedData = data
+      .map((record) =>
+        Record.filter(record, (_, key) => {
+          const dotCount = (key.match(/\./g) || []).length;
+          if (dotCount !== 1) return false;
+          const matches = key.match(/\w+\.\w+/g);
+          return matches !== null && matches.length > 0;
+        })
+      )
+      .map((record) => nestifyObject(record)) as Record<
+      string,
+      Record<string, unknown>
+    >[];
+
+    // Merge
+
+    const result = cleanedData.map((copyEdits, index) => {
       const copy = selectedNode.clone();
 
       parentNode.appendChild(copy);
-      if (!parentHasAutoLayout) {
+      if (!parentHasAutoLayout && spaceBetweenItems) {
         const increaseX = selectedNode.width + 20;
         const startX = selectedNode.x + increaseX;
         const startY = selectedNode.y;
