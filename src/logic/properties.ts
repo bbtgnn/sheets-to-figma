@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { isWebUri } from "valid-url";
-import { clone } from "./utils";
+import { changeSolidPaintColor, clone, isHexColor } from "./utils";
 import { Array, Record } from "effect";
 
 export const propertiesHandlers: Record<
@@ -56,32 +56,30 @@ export const propertiesHandlers: Record<
 
     const nodeFills = node.fills == figma.mixed ? [] : clone(node.fills);
 
-    const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
-    if (hexColorRegex.test(fill.data)) {
+    if (isHexColor(fill.data)) {
       const firstSolidPaint = nodeFills.find((f) => f.type == "SOLID");
       if (firstSolidPaint) {
-        const { blendMode, opacity, visible } = firstSolidPaint;
-        // Somehow, opacity override does not work with figma.util.solidPaint
-        const { color } = figma.util.solidPaint(fill.data);
         node.fills = Array.replace(
           nodeFills,
           nodeFills.indexOf(firstSolidPaint),
-          figma.util.solidPaint(
-            {
-              ...color,
-              a: opacity,
-            },
-            {
-              blendMode,
-              visible,
-            }
-          )
+          changeSolidPaintColor(firstSolidPaint, fill.data)
         );
       } else {
         nodeFills.push(figma.util.solidPaint(fill.data));
         node.fills = nodeFills;
       }
     }
+  },
+
+  stroke_color: async (node, value) => {
+    if (!("strokes" in node) || !("strokeWeight" in node)) return;
+    const strokeColor = z.string().safeParse(value);
+    if (!strokeColor.success) return;
+    if (!isHexColor(strokeColor.data)) return;
+
+    console.log(node.strokes);
+    console.log("ok", node.strokeWeight);
+    // const stroke = node.strokes.find((s) => s.type == "SOLID");
   },
 
   instance: async (node, value) => {
