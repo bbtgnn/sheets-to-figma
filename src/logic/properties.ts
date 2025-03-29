@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { isWebUri } from "valid-url";
+import { clone } from "./utils";
+import { Array, Record } from "effect";
 
 export const propertiesHandlers: Record<
   string,
@@ -52,9 +54,33 @@ export const propertiesHandlers: Record<
       }
     }
 
+    const nodeFills = node.fills == figma.mixed ? [] : clone(node.fills);
+
     const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
     if (hexColorRegex.test(fill.data)) {
-      node.fills = [figma.util.solidPaint(fill.data)];
+      const firstSolidPaint = nodeFills.find((f) => f.type == "SOLID");
+      if (firstSolidPaint) {
+        const { blendMode, opacity, visible } = firstSolidPaint;
+        // Somehow, opacity override does not work with figma.util.solidPaint
+        const { color } = figma.util.solidPaint(fill.data);
+        node.fills = Array.replace(
+          nodeFills,
+          nodeFills.indexOf(firstSolidPaint),
+          figma.util.solidPaint(
+            {
+              ...color,
+              a: opacity,
+            },
+            {
+              blendMode,
+              visible,
+            }
+          )
+        );
+      } else {
+        nodeFills.push(figma.util.solidPaint(fill.data));
+        node.fills = nodeFills;
+      }
     }
   },
 
