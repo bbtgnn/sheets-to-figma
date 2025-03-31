@@ -72,14 +72,38 @@ export const propertiesHandlers: Record<
   },
 
   stroke_color: async (node, value) => {
-    if (!("strokes" in node) || !("strokeWeight" in node)) return;
+    if (!("strokeWeight" in node)) return;
     const strokeColor = z.string().safeParse(value);
     if (!strokeColor.success) return;
     if (!isHexColor(strokeColor.data)) return;
 
-    console.log(node.strokes);
-    console.log("ok", node.strokeWeight);
-    // const stroke = node.strokes.find((s) => s.type == "SOLID");
+    if (node.strokes.length == 0) node.strokeWeight = 2;
+
+    const nodeStrokes = clone(node.strokes);
+
+    const firstSolidPaint = nodeStrokes.find((s) => s.type == "SOLID");
+    if (firstSolidPaint) {
+      node.strokes = Array.replace(
+        nodeStrokes,
+        nodeStrokes.indexOf(firstSolidPaint),
+        changeSolidPaintColor(firstSolidPaint, strokeColor.data)
+      );
+    } else {
+      nodeStrokes.push(figma.util.solidPaint(strokeColor.data));
+      node.strokes = nodeStrokes;
+    }
+  },
+
+  stroke_weight: async (node, value) => {
+    if (!("strokeWeight" in node)) return;
+    const strokeWeight = z.number().safeParse(value);
+    if (!strokeWeight.success) return;
+
+    if (node.strokes.length == 0) {
+      node.strokes = [figma.util.solidPaint("black")];
+    }
+
+    node.strokeWeight = strokeWeight.data;
   },
 
   instance: async (node, value) => {

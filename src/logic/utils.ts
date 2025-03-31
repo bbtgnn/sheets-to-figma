@@ -30,5 +30,3 @@ export function changeSolidPaintColor(
     }
   );
 }
-
-export function addSolidPaintOrReplaceFirst(color: string, n);
