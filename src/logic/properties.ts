@@ -34,8 +34,14 @@ export const propertiesHandlers: Record<
   text: async (node, value) => {
     if (!("characters" in node)) return;
     await figma.loadFontAsync(node.fontName as FontName);
-    const text = z.string().safeParse(value);
-    if (text.success) node.characters = text.data;
+
+    let text: string;
+    if (typeof value === "string") {
+      text = value;
+    } else {
+      text = JSON.stringify(value);
+    }
+    node.characters = text;
   },
 
   fill: async (node, value) => {
