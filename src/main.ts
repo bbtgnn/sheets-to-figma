@@ -6,7 +6,7 @@ import { config } from "./logic/config";
 import { propertiesHandlers } from "./logic/properties";
 import type { Selection } from "./logic/types";
 import type { SheetRecords } from "./logic/fetch";
-import { Record, String } from "effect";
+import { Record } from "effect";
 
 /* Comlink setup */
 
@@ -22,9 +22,6 @@ import { nestifyObject } from "nestify-anything";
 const spreadsheetUrlKey = "spreadsheetUrl";
 
 const api = {
-  foo() {
-    return "bar";
-  },
   getCurrentSelection() {
     return getSelection();
   },
@@ -83,21 +80,24 @@ const api = {
       }
 
       // TODO - First swap instance, then apply edits
+
       const edits = Object.entries(copyEdits)
         .map(([nodeName, nodeEdits]) => {
-          let nodeToEdit: SceneNode | null = null;
-          if (copy.name == nodeName) nodeToEdit = copy;
-          else if ("findOne" in copy)
-            nodeToEdit = copy.findOne((node) => node.name == nodeName);
+          let nodesToEdit: SceneNode[] = [];
+          if (copy.name == nodeName) nodesToEdit.push(copy);
+          if ("findAll" in copy)
+            nodesToEdit.push(...copy.findAll((node) => node.name == nodeName));
           return {
-            nodeToEdit,
+            nodeToEdit: nodesToEdit,
             nodeEdits,
           };
         })
-        .filter(({ nodeToEdit }) => nodeToEdit !== null)
+        .filter(({ nodeToEdit }) => nodeToEdit.length > 0)
         .map(({ nodeToEdit, nodeEdits }) =>
-          Object.entries(nodeEdits).map(([propertyName, propertyValue]) =>
-            editNodeProperty(nodeToEdit!, propertyName, propertyValue)
+          Object.entries(nodeEdits).flatMap(([propertyName, propertyValue]) =>
+            nodeToEdit.map((node) =>
+              editNodeProperty(node, propertyName, propertyValue)
+            )
           )
         )
         .flat();
