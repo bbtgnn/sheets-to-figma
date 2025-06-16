@@ -122,4 +122,14 @@ export const propertiesHandlers: Record<
     if (!(componentNode?.type == "COMPONENT")) return;
     node.swapComponent(componentNode);
   },
+
+  hidden: async (node, value) => {
+    const v = z.boolean().safeParse(value);
+    node.visible = v.data ?? false;
+  },
+
+  visible: async (node, value) => {
+    const v = z.boolean().safeParse(value);
+    node.visible = v.data ?? true;
+  },
 };
