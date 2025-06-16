@@ -1,5 +1,21 @@
 import { cloneDeep } from "lodash";
 
+/* Close plugin */
+
+const CLOSE_MESSAGE = "close";
+
+export function sendCloseMessage() {
+  parent.postMessage({ pluginMessage: CLOSE_MESSAGE }, "*");
+}
+
+export function setupCloseMessageListener() {
+  figma.ui.onmessage = (message) => {
+    if (message == CLOSE_MESSAGE) figma.closePlugin();
+  };
+}
+
+/* Various */
+
 const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
 
 export function isHexColor(color: string): boolean {

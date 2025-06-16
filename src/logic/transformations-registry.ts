@@ -3,10 +3,14 @@ import { isWebUri } from "valid-url";
 import { changeSolidPaintColor, clone, isHexColor } from "./utils";
 import { Array, Record } from "effect";
 
-export const propertiesHandlers: Record<
-  string,
-  (node: SceneNode, value: unknown) => Promise<void>
-> = {
+//
+
+export type PropertyUpdater = (
+  node: SceneNode,
+  value: unknown
+) => Promise<void>;
+
+export const propertyUpdaters: Record<string, PropertyUpdater> = {
   x: async (node, value) => {
     const x = z.number().safeParse(value);
     if (x.success) node.x = x.data;

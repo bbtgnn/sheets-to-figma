@@ -8,32 +8,23 @@
 
 <script lang="ts">
   import { config } from "./logic/config";
-  import {
-    getSheetGidFromUrl,
-    getSheetIdFromUrl,
-    getSheetRecords,
-  } from "./logic/fetch";
-  import { onMount } from "svelte";
-  import { ok, err } from "true-myth/result";
-
-  /* Comlink setup */
+  import { App } from "./ui.svelte.js";
 
   import * as Comlink from "comlink";
   import { pluginEndpoint } from "figma-comlink";
   import type { PluginApi } from "./main";
   import packageJson from "../package.json";
-  import { sendCloseMessage } from "./logic/close";
+
+  /* Comlink setup */
 
   const pluginEnd = pluginEndpoint({
     pluginId: packageJson.plugma.manifest.id,
   });
 
   // Receiving
-
   const plugin = Comlink.wrap<PluginApi>(pluginEnd);
 
   // Exposing
-
   const api: UiApi = {
     setSelection(selection) {
       app.selection = selection;
@@ -41,87 +32,9 @@
   };
   Comlink.expose(api, pluginEnd);
 
-  /* App state */
+  /* App setup */
 
-  class App {
-    /* Inputs */
-
-    selection = $state<Selection>([]);
-    selectedNode = $derived.by(() => {
-      if (this.selection.length === 1) {
-        return ok(this.selection[0]);
-      } else if (this.selection.length === 0) {
-        return err(new Error("No selection"));
-      } else {
-        return err(new Error("Multiple selection"));
-      }
-    });
-
-    sheetUrl = $state("");
-    sheetId = $derived(getSheetIdFromUrl(this.sheetUrl));
-
-    spaceBetweenItems = $state(false);
-
-    constructor() {
-      onMount(async () => {
-        app.selection = await plugin.getCurrentSelection();
-        app.sheetUrl = await plugin.getSpreadsheetUrl();
-      });
-    }
-
-    /* Merging */
-
-    canStartMerge = $derived(this.sheetId.isOk && this.selectedNode.isOk);
-
-    mergeErrors = $state<string[]>([]);
-    mergeLoading = $state(false);
-
-    async mergeData() {
-      if (!this.sheetId.isOk || !this.selectedNode.isOk) return;
-
-      this.mergeErrors = [];
-      this.mergeLoading = true;
-
-      const sheetId = this.sheetId.value;
-      const gid = getSheetGidFromUrl(this.sheetUrl);
-      const records = await getSheetRecords(sheetId, gid.unwrapOr(0));
-
-      if (records.isErr) {
-        this.mergeErrors = [records.error.message];
-        this.mergeLoading = false;
-        return;
-      }
-
-      await plugin.storeSpreadsheetUrl(this.sheetUrl);
-
-      const failures = await plugin.mergeData(
-        this.selectedNode.value.id,
-        records.value,
-        this.spaceBetweenItems
-      );
-
-      if (failures) this.mergeErrors = failures;
-      this.mergeLoading = false;
-
-      sendCloseMessage();
-    }
-
-    hasErrors() {
-      return this.mergeErrors.length > 0;
-    }
-
-    clearError() {
-      this.mergeErrors = [];
-    }
-
-    showAllErrorsUi = $state(false);
-
-    toggleShowAllErrorsUi() {
-      this.showAllErrorsUi = !this.showAllErrorsUi;
-    }
-  }
-
-  const app = $state(new App());
+  const app = new App(plugin);
 </script>
 
 <div
@@ -140,7 +53,7 @@
         placeholder="https://..."
       />
       <div>
-        {#if app.sheetId.isOk}
+        {#if app.isSheetUrlValid}
           <p class="text-green-600">✅ URL is valid!</p>
         {:else}
           <p class="text-red-600">❌ URL is invalid!</p>
@@ -153,14 +66,14 @@
     {@render number(2)}
     <div>
       <p class="font-medium">Select a frame you want to copy and fill</p>
-      {#if app.selectedNode.isOk}
+      {#if app.selectedNode}
         <p class="text-green-600">
           ✅ Selected frame:
-          <span class="font-bold">{app.selectedNode.value.name}</span>
+          <span class="font-bold">{app.selectedNode.name}</span>
         </p>
-      {:else}
+      {:else if app.selectionError}
         <p class="text-red-600">
-          ❌ Invalid selection: {app.selectedNode.error.message}
+          ❌ Invalid selection: {app.selectionError.message}
         </p>
       {/if}
     </div>
@@ -187,7 +100,7 @@
     </button>
   </div>
 
-  <div
+  <!-- <div
     class={[
       "px-4 grow flex items-center bg-blue-200",
       {
@@ -233,16 +146,16 @@
         </a>
       </p>
     {/if}
-  </div>
+  </div> -->
 </div>
 
-{#if app.showAllErrorsUi}
+{#if app.showErrorsUi}
   <div
     style:width="{config.viewport.width}px"
     style:height="{config.viewport.height}px"
     class="bg-yellow-100 flex flex-col fixed top-0 left-0"
   >
-    <div
+    <!-- <div
       class="p-4 flex items-center justify-between border-b border-yellow-300"
     >
       <p class="text-yellow-700">
@@ -262,7 +175,7 @@
       {#each app.mergeErrors as error}
         <p class="text-yellow-700">{error}</p>
       {/each}
-    </div>
+    </div> -->
   </div>
 {/if}
 

@@ -3,9 +3,8 @@ import "./utils/bigint-polyfill";
 //
 
 import { config } from "./logic/config";
-import { propertiesHandlers } from "./logic/properties";
+import { propertyUpdates } from "./logic/transformations-registry";
 import type { Selection } from "./logic/types";
-import type { SheetRecords } from "./logic/fetch";
 import { Record } from "effect";
 
 /* Comlink setup */
@@ -16,8 +15,9 @@ import type { UiApi } from "./ui.svelte";
 import { pipe, Effect as _ } from "effect";
 import { setupCloseMessageListener } from "./logic/close";
 import { nestifyObject } from "nestify-anything";
+import type { SheetCsv } from "./logic/data-fetch";
 
-// Exposing
+/* Comlink - Exposing */
 
 const spreadsheetUrlKey = "spreadsheetUrl";
 
@@ -35,10 +35,11 @@ const api = {
 
   async mergeData(
     nodeId: string,
-    data: SheetRecords,
+    data: SheetCsv,
     spaceBetweenItems: boolean
   ) {
-    // Selection validation
+    /* Selection validation */
+
     const selectedNode = figma.currentPage.findOne((node) => node.id == nodeId);
     if (!selectedNode) return;
 
@@ -47,27 +48,32 @@ const api = {
     const parentHasAutoLayout =
       parentNode.type == "FRAME" && Boolean(parentNode.inferredAutoLayout);
 
-    // Data validation
-    // We get only the records that have a single dot in the key
-    // a.k.a two levels of nesting
+    /* Making copies */
 
-    const cleanedData = data
-      .map((record) =>
-        Record.filter(record, (_, key) => {
-          const dotCount = (key.match(/\./g) || []).length;
-          if (dotCount !== 1) return false;
-          const matches = key.match(/\w+\.\w+/g);
-          return matches !== null && matches.length > 0;
-        })
-      )
-      .map((record) => nestifyObject(record)) as Record<
-      string,
-      Record<string, unknown>
-    >[];
+    const copiesCount = data.length - 1;
+    const copies: SceneNode[] = [];
 
-    // Merge
+    for (let i = 0; i < copiesCount; i++) {
+      const copy = selectedNode.clone();
+      parentNode.appendChild(copy);
+      copies.push(copy);
+      if (!parentHasAutoLayout && spaceBetweenItems) {
+        const increaseX = selectedNode.width + 20;
+        const startX = selectedNode.x + increaseX;
+        const startY = selectedNode.y;
+        copy.x = startX + i * increaseX;
+        copy.y = startY;
+      }
+    }
 
-    const result = cleanedData.map((copyEdits, index) => {
+    figma.viewport.scrollAndZoomIntoView(copies);
+    figma.currentPage.selection = copies;
+
+    /* Merging */
+
+    const transformations = data.
+
+    const result = data.map((copyEdits, index) => {
       const copy = selectedNode.clone();
 
       parentNode.appendChild(copy);
@@ -108,7 +114,8 @@ const api = {
       };
     });
 
-    const copies = result.map(({ copy }) => copy);
+
+    // TODO - Maybe handle this as a side effect
     figma.viewport.scrollAndZoomIntoView(copies);
     figma.currentPage.selection = copies;
 
@@ -125,7 +132,7 @@ export type PluginApi = typeof api;
 
 Comlink.expose(api, uiEndpoint());
 
-// Receiving
+/* Comlink - Receiving */
 
 const ui = Comlink.wrap<UiApi>(uiEndpoint());
 
@@ -159,7 +166,7 @@ function getSelection(): Selection {
 
 function editNodeProperty(node: SceneNode, property: string, value: unknown) {
   const transformation = pipe(
-    _.fromNullable(propertiesHandlers[property]),
+    _.fromNullable(propertyUpdates[property]),
     _.flatMap((handler) =>
       _.tryPromise({
         try: () => handler(node, value) as Promise<void>,
