@@ -103,11 +103,11 @@ type Row = z.infer<typeof rowSchema>;
 
 function normalizeRow(row: Row): unknown[] {
   return pipe(
-    row.c.map((c) => c?.v),
-    A.reverse,
-    // Removes blank items at the end
-    A.dropWhile((v) => v !== null),
-    A.reverse
+    row.c.map((c) => c?.v)
+    // A.reverse,
+    // // Removes blank items at the end
+    // A.dropWhile((v) => v !== null),
+    // A.reverse
   );
 }
 
@@ -148,6 +148,7 @@ function sheetJsonToRecords(data: SheetJson): _.Effect<SheetRecords, Error> {
 
   const parsed = sheetRecordsSchema.safeParse(sheetData);
   if (!parsed.success) return _.fail(new Error(parsed.error.message));
+
   return _.succeed(parsed.data);
 }
 

@@ -164,7 +164,7 @@ function editNodeProperty(node: SceneNode, property: string, value: unknown) {
       _.tryPromise({
         try: () => handler(node, value) as Promise<void>,
         catch: (e) => {
-          console.error(
+          console.warn(
             `Error setting property "${property}" on node "${node.name}"`,
             handler,
             e
