@@ -28,7 +28,33 @@ export const propertiesHandlers: Record<
 
   rotation: async (node, value) => {
     const rotation = z.number().safeParse(value);
-    if (rotation.success && "rotation" in node) node.rotation = rotation.data;
+    if (!rotation.success) return;
+
+    // https://gist.github.com/LukeFinch/d3c93d79a9dcd6970358be1d17838318
+
+    let angle = rotation.data;
+    let theta = angle * (Math.PI / 180); //radians
+
+    let cx = node.x + node.width / 2;
+    let cy = node.y + node.height / 2;
+
+    let newx =
+      Math.cos(theta) * node.x +
+      node.y * Math.sin(theta) -
+      cy * Math.sin(theta) -
+      cx * Math.cos(theta) +
+      cx;
+    let newy =
+      -Math.sin(theta) * node.x +
+      cx * Math.sin(theta) +
+      node.y * Math.cos(theta) -
+      cy * Math.cos(theta) +
+      cy;
+
+    node.relativeTransform = [
+      [Math.cos(theta), Math.sin(theta), newx],
+      [-Math.sin(theta), Math.cos(theta), newy],
+    ];
   },
 
   text: async (node, value) => {
