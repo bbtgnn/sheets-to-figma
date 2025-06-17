@@ -4,7 +4,7 @@ import Papa from "papaparse";
 
 /* Main */
 
-export function fetchSheetCsv(url: string): _.Effect<SheetCsv, Error> {
+export function fetchSheetCsv(url: string): _.Effect<Csv, Error> {
   return _.gen(function* () {
     const sheetId = yield* getSheetIdFromUrl(url);
     const gid = yield* getSheetGidFromUrl(url);
@@ -54,7 +54,9 @@ function fetchSheetCsvString(id: string, gid = 0): _.Effect<string, Error> {
 
 //
 
-function parseCsv(text: string) {
+export type Csv = string[][];
+
+function parseCsv(text: string): _.Effect<Csv, Error> {
   return _.gen(function* () {
     const { data } = yield* _.try({
       try: () =>
@@ -65,8 +67,6 @@ function parseCsv(text: string) {
       catch: () => new Error("CSV parse error"),
     });
 
-    return data as SheetCsv;
+    return data as Csv;
   });
 }
-
-export type SheetCsv = string[][];

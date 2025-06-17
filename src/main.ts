@@ -15,7 +15,7 @@ import type { UiApi } from "./ui.svelte";
 import { pipe, Effect as _ } from "effect";
 import { setupCloseMessageListener } from "./logic/close";
 import { nestifyObject } from "nestify-anything";
-import type { SheetCsv } from "./logic/data-fetch";
+import type { Csv } from "./logic/data-fetch";
 
 /* Comlink - Exposing */
 
@@ -35,7 +35,7 @@ const api = {
 
   async mergeData(
     nodeId: string,
-    data: SheetCsv,
+    data: Csv,
     spaceBetweenItems: boolean
   ) {
     /* Selection validation */

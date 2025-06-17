@@ -1,4 +1,4 @@
-import type { SheetCsv } from "./data-fetch";
+import type { Csv } from "./data-fetch";
 import {
   propertyUpdaters,
   propertyUpdates,
@@ -69,7 +69,7 @@ type TransformationPayload = {
 };
 
 function getTransformationsPayload(
-  csv: SheetCsv,
+  csv: Csv,
   nodes: SceneNode[]
 ): _.Effect<TransformationPayload[], Error> {
   if (csv.length - 1 != nodes.length)

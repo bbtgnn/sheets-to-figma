@@ -1,5 +1,17 @@
 import { cloneDeep } from "lodash";
 
+/* Types */
+
+type NodeType = (typeof figma.currentPage.selection)[0]["type"];
+
+export type SelectedNode = {
+  id: string;
+  name: string;
+  type: NodeType;
+};
+
+export type Selection = SelectedNode[];
+
 /* Close plugin */
 
 const CLOSE_MESSAGE = "close";
