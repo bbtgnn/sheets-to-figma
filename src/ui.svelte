@@ -47,14 +47,19 @@
     /* Inputs */
 
     selection = $state<Selection>([]);
-    selectedNode = $derived.by(() => {
-      if (this.selection.length === 1) {
-        return ok(this.selection[0]);
-      } else if (this.selection.length === 0) {
-        return err(new Error("No selection"));
-      } else {
-        return err(new Error("Multiple selection"));
+    selectionError = $derived.by(() => {
+      if (this.selection.length === 0) {
+        return new Error("No selection");
       }
+      const selectionHasOneParent = this.selection.every(
+        (node) => node.parentId === this.selection[0].parentId
+      );
+      if (!selectionHasOneParent) {
+        return new Error(
+          "If you want to select multiple items, they must have the same parent"
+        );
+      }
+      return undefined;
     });
 
     sheetUrl = $state("");
@@ -71,13 +76,13 @@
 
     /* Merging */
 
-    canStartMerge = $derived(this.sheetId.isOk && this.selectedNode.isOk);
+    canStartMerge = $derived(this.sheetId.isOk && !this.selectionError);
 
     mergeErrors = $state<string[]>([]);
     mergeLoading = $state(false);
 
     async mergeData() {
-      if (!this.sheetId.isOk || !this.selectedNode.isOk) return;
+      if (!this.sheetId.isOk || this.selectionError) return;
 
       this.mergeErrors = [];
       this.mergeLoading = true;
@@ -95,7 +100,7 @@
       await plugin.storeSpreadsheetUrl(this.sheetUrl);
 
       const failures = await plugin.mergeData(
-        this.selectedNode.value.id,
+        this.selection.map((node) => node.id),
         records.value,
         this.spaceBetweenItems
       );
@@ -153,14 +158,16 @@
     {@render number(2)}
     <div>
       <p class="font-medium">Select a frame you want to copy and fill</p>
-      {#if app.selectedNode.isOk}
+      {#if !app.selectionError}
         <p class="text-green-600">
-          ✅ Selected frame:
-          <span class="font-bold">{app.selectedNode.value.name}</span>
+          ✅ Selected items:
+          <span class="font-bold"
+            >{app.selection.map((node) => node.name).join(", ")}</span
+          >
         </p>
       {:else}
         <p class="text-red-600">
-          ❌ Invalid selection: {app.selectedNode.error.message}
+          ❌ Invalid selection: {app.selectionError.message}
         </p>
       {/if}
     </div>

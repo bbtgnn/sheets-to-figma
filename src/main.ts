@@ -34,16 +34,29 @@ const api = {
   },
 
   async mergeData(
-    nodeId: string,
+    nodeIds: string[],
     data: SheetRecords,
     spaceBetweenItems: boolean
   ) {
     // Selection validation
-    const selectedNode = figma.currentPage.findOne((node) => node.id == nodeId);
-    if (!selectedNode) return;
+    const selectedNodes = nodeIds
+      .map((nodeId) => figma.currentPage.findOne((node) => node.id == nodeId))
+      .filter((node) => node !== null);
 
-    const parentNode = selectedNode.parent;
+    if (selectedNodes.length === 0 || selectedNodes.length != nodeIds.length) {
+      return;
+    }
+
+    const selectionHasOneParent = selectedNodes.every(
+      (node) => node.parent?.id === selectedNodes[0].parent?.id
+    );
+    if (!selectionHasOneParent) {
+      return;
+    }
+
+    const parentNode = selectedNodes[0].parent;
     if (!parentNode) return;
+
     const parentHasAutoLayout =
       parentNode.type == "FRAME" && Boolean(parentNode.inferredAutoLayout);
 
@@ -67,46 +80,50 @@ const api = {
 
     // Merge
 
-    const result = cleanedData.map((copyEdits, index) => {
-      const copy = selectedNode.clone();
+    const result = selectedNodes.flatMap((selectedNode) =>
+      cleanedData.map((copyEdits, index) => {
+        const copy = selectedNode.clone();
 
-      parentNode.appendChild(copy);
-      if (!parentHasAutoLayout && spaceBetweenItems) {
-        const increaseX = selectedNode.width + 20;
-        const startX = selectedNode.x + increaseX;
-        const startY = selectedNode.y;
-        copy.x = startX + index * increaseX;
-        copy.y = startY;
-      }
+        parentNode.appendChild(copy);
+        if (!parentHasAutoLayout && spaceBetweenItems) {
+          const increaseX = selectedNode.width + 20;
+          const startX = selectedNode.x + increaseX;
+          const startY = selectedNode.y;
+          copy.x = startX + index * increaseX;
+          copy.y = startY;
+        }
 
-      // TODO - First swap instance, then apply edits
+        // TODO - First swap instance, then apply edits
 
-      const edits = Object.entries(copyEdits)
-        .map(([nodeName, nodeEdits]) => {
-          let nodesToEdit: SceneNode[] = [];
-          if (copy.name == nodeName) nodesToEdit.push(copy);
-          if ("findAll" in copy)
-            nodesToEdit.push(...copy.findAll((node) => node.name == nodeName));
-          return {
-            nodeToEdit: nodesToEdit,
-            nodeEdits,
-          };
-        })
-        .filter(({ nodeToEdit }) => nodeToEdit.length > 0)
-        .map(({ nodeToEdit, nodeEdits }) =>
-          Object.entries(nodeEdits).flatMap(([propertyName, propertyValue]) =>
-            nodeToEdit.map((node) =>
-              editNodeProperty(node, propertyName, propertyValue)
+        const edits = Object.entries(copyEdits)
+          .map(([nodeName, nodeEdits]) => {
+            let nodesToEdit: SceneNode[] = [];
+            if (copy.name == nodeName) nodesToEdit.push(copy);
+            if ("findAll" in copy)
+              nodesToEdit.push(
+                ...copy.findAll((node) => node.name == nodeName)
+              );
+            return {
+              nodeToEdit: nodesToEdit,
+              nodeEdits,
+            };
+          })
+          .filter(({ nodeToEdit }) => nodeToEdit.length > 0)
+          .map(({ nodeToEdit, nodeEdits }) =>
+            Object.entries(nodeEdits).flatMap(([propertyName, propertyValue]) =>
+              nodeToEdit.map((node) =>
+                editNodeProperty(node, propertyName, propertyValue)
+              )
             )
           )
-        )
-        .flat();
+          .flat();
 
-      return {
-        copy: copy as SceneNode,
-        edits,
-      };
-    });
+        return {
+          copy: copy as SceneNode,
+          edits,
+        };
+      })
+    );
 
     const copies = result.map(({ copy }) => copy);
     figma.viewport.scrollAndZoomIntoView(copies);
@@ -152,6 +169,7 @@ function getSelection(): Selection {
     id: node.id,
     name: node.name,
     type: node.type,
+    parentId: node.parent?.id,
   }));
 }
 
