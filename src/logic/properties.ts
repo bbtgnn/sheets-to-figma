@@ -18,12 +18,30 @@ export const propertiesHandlers: Record<
 
   width: async (node, value) => {
     const width = z.number().safeParse(value);
-    if (width.success && "resize" in node) node.resize(width.data, node.height);
+    if (!(width.success && "resize" in node)) return;
+    const delta = node.width - width.data;
+    node.resize(width.data, node.height);
+    if (!("constraints" in node)) return;
+    const { horizontal } = node.constraints;
+    if (
+      horizontal === "CENTER" ||
+      horizontal === "STRETCH" ||
+      horizontal === "SCALE"
+    )
+      node.x = node.x + delta / 2;
+    else if (horizontal === "MAX") node.x = node.x + delta;
   },
+
   height: async (node, value) => {
     const height = z.number().safeParse(value);
-    if (height.success && "resize" in node)
-      node.resize(node.width, height.data);
+    if (!(height.success && "resize" in node)) return;
+    const delta = node.height - height.data;
+    node.resize(node.width, height.data);
+    if (!("constraints" in node)) return;
+    const { vertical } = node.constraints;
+    if (vertical === "CENTER" || vertical === "STRETCH" || vertical === "SCALE")
+      node.y = node.y + delta / 2;
+    else if (vertical === "MAX") node.y = node.y + delta;
   },
 
   rotation: async (node, value) => {
