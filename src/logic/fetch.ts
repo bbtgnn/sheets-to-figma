@@ -106,7 +106,7 @@ function normalizeRow(row: Row): unknown[] {
     row.c.map((c) => c?.v),
     A.reverse,
     // Removes blank items at the end
-    A.dropWhile((v) => !Boolean(v)),
+    A.dropWhile((v) => v !== null),
     A.reverse
   );
 }
