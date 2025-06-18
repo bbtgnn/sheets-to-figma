@@ -239,7 +239,7 @@
           Giovanni Abbatepaolo
         </a>
         <span class="text-black/10 absolute right-2 text-xs bottom-1">
-          Version {Number(packageJson.plugma.pluginVersion) + 1}
+          Version {packageJson.plugma.pluginVersion}
         </span>
       </p>
     {/if}
