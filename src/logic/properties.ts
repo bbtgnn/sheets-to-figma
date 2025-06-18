@@ -53,8 +53,22 @@ export const propertiesHandlers: Record<
     let angle = rotation.data;
     let theta = angle * (Math.PI / 180); //radians
 
-    let cx = node.x + node.width / 2;
-    let cy = node.y + node.height / 2;
+    let cx = node.x;
+    let cy = node.y;
+
+    if ("constraints" in node) {
+      const { horizontal, vertical } = node.constraints;
+      if (horizontal === "MAX") {
+        cx = node.x + node.width;
+      } else if (horizontal === "CENTER") {
+        cx = node.x + node.width / 2;
+      }
+      if (vertical === "MAX") {
+        cy = node.y + node.height;
+      } else if (vertical === "CENTER") {
+        cy = node.y + node.height / 2;
+      }
+    }
 
     let newx =
       Math.cos(theta) * node.x +
