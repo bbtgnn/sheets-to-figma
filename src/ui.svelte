@@ -129,6 +129,14 @@
       </p>
     {/if}
   </div>
+
+  {#if app.mergeLoading}
+    <div class="absolute inset-0 bg-black/50 flex items-center justify-center">
+      <div
+        class="size-12 border-4 border-white border-t-transparent rounded-full animate-spin"
+      ></div>
+    </div>
+  {/if}
 </div>
 
 {#if app.showAllErrorsUi}
