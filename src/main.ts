@@ -78,10 +78,15 @@ const api = {
       Record<string, unknown>
     >[];
 
-    // Merge
+    // Merge (insertChild + sequential order for low-end devices)
 
-    const result = selectedNodes.flatMap((selectedNode) =>
-      cleanedData.map((copyEdits, index) => {
+    const result: {
+      copy: SceneNode;
+      edits: ReturnType<typeof editNodeProperty>[];
+    }[] = [];
+    for (const selectedNode of selectedNodes) {
+      for (let index = 0; index < cleanedData.length; index++) {
+        const copyEdits = cleanedData[index];
         const copy = selectedNode.clone();
 
         parentNode.appendChild(copy);
@@ -118,12 +123,9 @@ const api = {
           )
           .flat();
 
-        return {
-          copy: copy as SceneNode,
-          edits,
-        };
-      })
-    );
+        result.push({ copy: copy as SceneNode, edits });
+      }
+    }
 
     const copies = result.map(({ copy }) => copy);
     figma.viewport.scrollAndZoomIntoView(copies);
