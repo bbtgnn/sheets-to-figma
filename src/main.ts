@@ -1,3 +1,4 @@
+import "./utils/url-polyfill";
 import "./utils/bigint-polyfill";
 
 //
