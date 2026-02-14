@@ -22,11 +22,6 @@ jobs:
           ref: main # Ensure you're checking out the main branch
           tags: true
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 8
-
       - name: Fetch specific tag
         run: |
           TAG_NAME="${{ github.ref }}"
@@ -34,7 +29,7 @@ jobs:
           git fetch origin "refs/tags/$TAG_NAME:refs/tags/$TAG_NAME" # Fetch only the specific tag
 
       - name: Install dependencies
-        run: pnpm install # Use 'npm ci' for clean installation of dependencies
+        run: npm ci # Use 'npm ci' for clean installation of dependencies
 
       - name: Determine release type and prerelease status
         id: determine_release_type
@@ -59,7 +54,7 @@ jobs:
         run: git tag -l
 
       - name: Build project
-        run: pnpm build
+        run: npm run build
 
       - name: Zip dist folder
         run: zip -r dist.zip dist
