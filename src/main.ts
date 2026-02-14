@@ -13,9 +13,11 @@ import { Record } from "effect";
 
 import * as Comlink from "comlink";
 import { uiEndpoint } from "figma-comlink";
-import type { UiApi } from "./ui.svelte";
 import { pipe, Effect as _ } from "effect";
-import { setupCloseMessageListener } from "./logic/close";
+import {
+  sendSelectionMessage,
+  setupCloseMessageListener,
+} from "./logic/messaging";
 import { nestifyObject } from "nestify-anything";
 
 // Exposing
@@ -145,10 +147,6 @@ export type PluginApi = typeof api;
 
 Comlink.expose(api, uiEndpoint());
 
-// Receiving
-
-const ui = Comlink.wrap<UiApi>(uiEndpoint());
-
 /* Main */
 
 export default function () {
@@ -159,7 +157,7 @@ export default function () {
   });
 
   figma.on("selectionchange", async () => {
-    await ui.setSelection(getSelection());
+    sendSelectionMessage(getSelection());
   });
 
   setupCloseMessageListener();
