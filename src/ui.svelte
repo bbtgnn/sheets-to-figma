@@ -126,7 +126,7 @@
     }
   }
 
-  const app = $state(new App());
+  const app = new App();
 </script>
 
 <div
@@ -244,6 +244,16 @@
       </p>
     {/if}
   </div>
+
+  {#if app.mergeLoading}
+    <div
+      class="p-4 fixed top-0 left-0 w-full h-full bg-black/50 flex items-center justify-center"
+    >
+      <div
+        class="w-10 h-10 border-t-transparent border-2 border-white rounded-full animate-spin"
+      ></div>
+    </div>
+  {/if}
 </div>
 
 {#if app.showAllErrorsUi}
