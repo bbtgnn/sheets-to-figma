@@ -4,10 +4,9 @@ import "./utils/url-polyfill";
 
 import { config } from "./logic/config";
 import {
-  propertiesHandlers,
-  preloadFontsForTextProperties,
-  preloadFillImages,
-  type ApplyContext,
+  runPreloaders,
+  applyEdit,
+  propertyDefinitions,
 } from "./logic/properties";
 import type { Selection } from "./logic/types";
 import type { SheetRecords } from "./logic/fetch";
@@ -142,19 +141,10 @@ const api = {
     figma.currentPage.selection = copies;
 
     const allEditItems = result.flatMap(({ editItems }) => editItems);
-    await preloadFontsForTextProperties(
-      allEditItems.map(({ node, propertyName }) => ({ node, property: propertyName }))
-    );
-    const imageMap = await preloadFillImages(
-      allEditItems.map(({ propertyName, propertyValue }) => ({
-        property: propertyName,
-        value: propertyValue,
-      }))
-    );
-    const applyContext = { imageMap };
+    const context = await runPreloaders(allEditItems, propertyDefinitions);
 
     const results = allEditItems.map(({ node, propertyName, propertyValue }) =>
-      editNodeProperty(node, propertyName, propertyValue, applyContext)
+      applyEdit(node, propertyName, propertyValue, context)
     );
     return results.filter((r): r is Result.Err<void, Error> => r.isErr).map((r) => r.error.message);
   },
@@ -195,29 +185,3 @@ function getSelection(): Selection {
   }));
 }
 
-//
-
-function editNodeProperty(
-  node: SceneNode,
-  property: string,
-  value: unknown,
-  context?: ApplyContext
-): Result.Result<void, Error> {
-  const handler = propertiesHandlers[property];
-  if (!handler) {
-    return Result.err(new Error(`No handler for property "${property}"`));
-  }
-  try {
-    handler(node, value, context);
-    return Result.ok(undefined);
-  } catch (e) {
-    console.warn(
-      `Error setting property "${property}" on node "${node.name}"`,
-      handler,
-      e
-    );
-    return Result.err(
-      new Error(`${node.name}: Error setting property "${property}"`) as Error
-    );
-  }
-}
