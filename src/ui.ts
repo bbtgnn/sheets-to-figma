@@ -1,7 +1,3 @@
-import "./utils/bigint-polyfill";
-
-//
-
 import { mount } from "svelte";
 
 import Ui from "./ui.svelte";

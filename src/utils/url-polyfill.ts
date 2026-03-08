@@ -1,7 +1,7 @@
 /**
  * Minimal URL + URLSearchParams polyfill for environments that don't provide
- * the global URL API (e.g. Figma plugin sandbox). Effect's Hash and our fetch
- * logic rely on URL being defined.
+ * the global URL API (e.g. Figma plugin sandbox). Our fetch logic relies on
+ * URL being defined.
  */
 if (typeof globalThis.URL === "undefined") {
   class URLSearchParamsPolyfill {

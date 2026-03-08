@@ -14,7 +14,6 @@
     getSheetRecords,
   } from "./logic/fetch";
   import { onMount } from "svelte";
-  import { ok, err } from "true-myth/result";
 
   /* Comlink setup */
 
