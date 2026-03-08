@@ -6,6 +6,8 @@ import { config } from "./logic/config";
 import {
   propertiesHandlers,
   preloadFontsForTextProperties,
+  preloadFillImages,
+  type ApplyContext,
 } from "./logic/properties";
 import type { Selection } from "./logic/types";
 import type { SheetRecords } from "./logic/fetch";
@@ -16,7 +18,6 @@ import * as Comlink from "comlink";
 import { uiEndpoint } from "figma-comlink";
 import type { UiApi } from "./ui.svelte";
 import * as Result from "true-myth/result";
-import * as Task from "true-myth/task";
 import { setupCloseMessageListener } from "./logic/close";
 import { nestifyObject } from "nestify-anything";
 
@@ -144,12 +145,18 @@ const api = {
     await preloadFontsForTextProperties(
       allEditItems.map(({ node, propertyName }) => ({ node, property: propertyName }))
     );
-
-    const operations = allEditItems.map(({ node, propertyName, propertyValue }) =>
-      editNodeProperty(node, propertyName, propertyValue)
+    const imageMap = await preloadFillImages(
+      allEditItems.map(({ propertyName, propertyValue }) => ({
+        property: propertyName,
+        value: propertyValue,
+      }))
     );
-    const results = await Promise.all(operations.map((t) => t));
-    return results.filter((r) => r.isErr).map((r) => r.error.message);
+    const applyContext = { imageMap };
+
+    const results = allEditItems.map(({ node, propertyName, propertyValue }) =>
+      editNodeProperty(node, propertyName, propertyValue, applyContext)
+    );
+    return results.filter((r): r is Result.Err<void, Error> => r.isErr).map((r) => r.error.message);
   },
 };
 
@@ -193,23 +200,24 @@ function getSelection(): Selection {
 function editNodeProperty(
   node: SceneNode,
   property: string,
-  value: unknown
-): Task.Task<void, Error> {
+  value: unknown,
+  context?: ApplyContext
+): Result.Result<void, Error> {
   const handler = propertiesHandlers[property];
   if (!handler) {
-    return Task.reject(new Error(`No handler for property "${property}"`));
+    return Result.err(new Error(`No handler for property "${property}"`));
   }
-  return Task.safelyTryOrElse(
-    (e) => {
-      console.warn(
-        `Error setting property "${property}" on node "${node.name}"`,
-        handler,
-        e
-      );
-      return new Error(
-        `${node.name}: Error setting property "${property}"`
-      ) as Error;
-    },
-    () => handler(node, value) as Promise<void>
-  );
+  try {
+    handler(node, value, context);
+    return Result.ok(undefined);
+  } catch (e) {
+    console.warn(
+      `Error setting property "${property}" on node "${node.name}"`,
+      handler,
+      e
+    );
+    return Result.err(
+      new Error(`${node.name}: Error setting property "${property}"`) as Error
+    );
+  }
 }

@@ -2,6 +2,35 @@ import { z } from "zod";
 import { isWebUri } from "valid-url";
 import { changeSolidPaintColor, clone, isHexColor } from "./utils";
 
+export type ApplyContext = {
+  imageMap?: Map<string, Image>;
+};
+
+/** Preload all fill image URLs from "fill" edits; returns URL → Image for use in apply context. */
+export async function preloadFillImages(
+  edits: { property: string; value: unknown }[]
+): Promise<Map<string, Image>> {
+  const urls = new Set<string>();
+  for (const e of edits) {
+    if (e.property !== "fill") continue;
+    const parsed = z.string().safeParse(e.value);
+    if (!parsed.success || !isWebUri(parsed.data)) continue;
+    urls.add(parsed.data);
+  }
+  const imageMap = new Map<string, Image>();
+  await Promise.all(
+    Array.from(urls).map(async (url) => {
+      try {
+        const image = await figma.createImageAsync(url);
+        imageMap.set(url, image);
+      } catch (error) {
+        console.error(url, error);
+      }
+    })
+  );
+  return imageMap;
+}
+
 /** Load all fonts used by "text" edits once, before applying any properties. */
 export async function preloadFontsForTextProperties(
   edits: { node: SceneNode; property: string }[]
@@ -36,18 +65,18 @@ export async function preloadFontsForTextProperties(
 
 export const propertiesHandlers: Record<
   string,
-  (node: SceneNode, value: unknown) => Promise<void>
+  (node: SceneNode, value: unknown, context?: ApplyContext) => void
 > = {
-  x: async (node, value) => {
+  x: (node, value) => {
     const x = z.number().safeParse(value);
     if (x.success) node.x = x.data;
   },
-  y: async (node, value) => {
+  y: (node, value) => {
     const y = z.number().safeParse(value);
     if (y.success) node.y = y.data;
   },
 
-  width: async (node, value) => {
+  width: (node, value) => {
     const width = z.number().safeParse(value);
     if (!(width.success && "resize" in node)) return;
     const delta = node.width - width.data;
@@ -63,7 +92,7 @@ export const propertiesHandlers: Record<
     else if (horizontal === "MAX") node.x = node.x + delta;
   },
 
-  height: async (node, value) => {
+  height: (node, value) => {
     const height = z.number().safeParse(value);
     if (!(height.success && "resize" in node)) return;
     const delta = node.height - height.data;
@@ -75,7 +104,7 @@ export const propertiesHandlers: Record<
     else if (vertical === "MAX") node.y = node.y + delta;
   },
 
-  rotation: async (node, value) => {
+  rotation: (node, value) => {
     const rotation = z.number().safeParse(value);
     if (!rotation.success) return;
 
@@ -120,7 +149,7 @@ export const propertiesHandlers: Record<
     ];
   },
 
-  text: async (node, value) => {
+  text: (node, value) => {
     if (!("characters" in node)) return;
     // Font is loaded once before applying properties via preloadFontsForTextProperties
 
@@ -133,19 +162,19 @@ export const propertiesHandlers: Record<
     node.characters = text;
   },
 
-  fill: async (node, value) => {
+  fill: (node, value, context) => {
     if (!("fills" in node)) return;
     const fill = z.string().safeParse(value);
     if (!fill.success) return;
 
     if (isWebUri(fill.data)) {
-      try {
-        const image = await figma.createImageAsync(fill.data);
+      const image = context?.imageMap?.get(fill.data);
+      if (image) {
         node.fills = [
           { type: "IMAGE", imageHash: image.hash, scaleMode: "FILL" },
         ];
-      } catch (error) {
-        console.error(fill, "\n", error);
+      } else {
+        console.warn(`Fill image not preloaded: ${fill.data}`);
       }
     }
 
@@ -167,7 +196,7 @@ export const propertiesHandlers: Record<
     }
   },
 
-  stroke_color: async (node, value) => {
+  stroke_color: (node, value) => {
     if (!("strokeWeight" in node)) return;
     const strokeColor = z.string().safeParse(value);
     if (!strokeColor.success) return;
@@ -191,7 +220,7 @@ export const propertiesHandlers: Record<
     }
   },
 
-  stroke_weight: async (node, value) => {
+  stroke_weight: (node, value) => {
     if (!("strokeWeight" in node)) return;
     const strokeWeight = z.number().safeParse(value);
     if (!strokeWeight.success) return;
@@ -203,7 +232,7 @@ export const propertiesHandlers: Record<
     node.strokeWeight = strokeWeight.data;
   },
 
-  instance: async (node, value) => {
+  instance: (node, value) => {
     if (!(node.type == "INSTANCE")) return;
     const componentName = z.string().safeParse(value);
     if (!componentName.success) return;
@@ -214,12 +243,12 @@ export const propertiesHandlers: Record<
     node.swapComponent(componentNode);
   },
 
-  hidden: async (node, value) => {
+  hidden: (node, value) => {
     const v = z.boolean().safeParse(value);
     node.visible = v.data ?? false;
   },
 
-  visible: async (node, value) => {
+  visible: (node, value) => {
     const v = z.boolean().safeParse(value);
     node.visible = v.data ?? true;
   },
