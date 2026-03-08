@@ -2,6 +2,38 @@ import { z } from "zod";
 import { isWebUri } from "valid-url";
 import { changeSolidPaintColor, clone, isHexColor } from "./utils";
 
+/** Load all fonts used by "text" edits once, before applying any properties. */
+export async function preloadFontsForTextProperties(
+  edits: { node: SceneNode; property: string }[]
+): Promise<void> {
+  const textEdits = edits.filter(
+    (e) => e.property === "text" && "characters" in e.node
+  );
+  const fontNames: FontName[] = [];
+  const seen = new Set<string>();
+
+  for (const { node } of textEdits) {
+    const textNode = node as TextNode;
+    let fonts: FontName[];
+
+    if (textNode.fontName === figma.mixed) {
+      fonts = textNode.getRangeAllFontNames(0, textNode.characters.length);
+    } else {
+      fonts = [textNode.fontName];
+    }
+
+    for (const font of fonts) {
+      const key = `${font.family}-${font.style}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        fontNames.push(font);
+      }
+    }
+  }
+
+  await Promise.all(fontNames.map((font) => figma.loadFontAsync(font)));
+}
+
 export const propertiesHandlers: Record<
   string,
   (node: SceneNode, value: unknown) => Promise<void>
@@ -90,7 +122,7 @@ export const propertiesHandlers: Record<
 
   text: async (node, value) => {
     if (!("characters" in node)) return;
-    await figma.loadFontAsync(node.fontName as FontName);
+    // Font is loaded once before applying properties via preloadFontsForTextProperties
 
     let text: string;
     if (typeof value === "string") {
