@@ -37,6 +37,20 @@ const _propertyDefinitions = {
     },
   }),
 
+  tx: property({
+    schema: z.number(),
+    apply: (node, value) => {
+      node.x = node.x + value;
+    },
+  }),
+
+  ty: property({
+    schema: z.number(),
+    apply: (node, value) => {
+      node.y = node.y + value;
+    },
+  }),
+
   width: property({
     schema: z.number(),
     apply: (node, value) => {
