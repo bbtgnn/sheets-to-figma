@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { isWebUri } from "valid-url";
 import { changeSolidPaintColor, clone, isHexColor } from "./utils";
-import { Array, Record } from "effect";
 
 export const propertiesHandlers: Record<
   string,
@@ -114,7 +113,7 @@ export const propertiesHandlers: Record<
           { type: "IMAGE", imageHash: image.hash, scaleMode: "FILL" },
         ];
       } catch (error) {
-        console.error(error);
+        console.error(fill, "\n", error);
       }
     }
 
@@ -123,11 +122,12 @@ export const propertiesHandlers: Record<
     if (isHexColor(fill.data)) {
       const firstSolidPaint = nodeFills.find((f) => f.type == "SOLID");
       if (firstSolidPaint) {
-        node.fills = Array.replace(
-          nodeFills,
-          nodeFills.indexOf(firstSolidPaint),
-          changeSolidPaintColor(firstSolidPaint, fill.data)
-        );
+        const i = nodeFills.indexOf(firstSolidPaint);
+        node.fills = [
+          ...nodeFills.slice(0, i),
+          changeSolidPaintColor(firstSolidPaint, fill.data),
+          ...nodeFills.slice(i + 1),
+        ];
       } else {
         nodeFills.push(figma.util.solidPaint(fill.data));
         node.fills = nodeFills;
@@ -147,11 +147,12 @@ export const propertiesHandlers: Record<
 
     const firstSolidPaint = nodeStrokes.find((s) => s.type == "SOLID");
     if (firstSolidPaint) {
-      node.strokes = Array.replace(
-        nodeStrokes,
-        nodeStrokes.indexOf(firstSolidPaint),
-        changeSolidPaintColor(firstSolidPaint, strokeColor.data)
-      );
+      const i = nodeStrokes.indexOf(firstSolidPaint);
+      node.strokes = [
+        ...nodeStrokes.slice(0, i),
+        changeSolidPaintColor(firstSolidPaint, strokeColor.data),
+        ...nodeStrokes.slice(i + 1),
+      ];
     } else {
       nodeStrokes.push(figma.util.solidPaint(strokeColor.data));
       node.strokes = nodeStrokes;

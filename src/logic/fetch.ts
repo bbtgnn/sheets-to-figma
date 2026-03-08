@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { Array as A, pipe, String as S, Tuple, Effect as _ } from "effect";
 import { err, ok } from "true-myth/result";
 import * as Task from "true-myth/task";
 import * as Maybe from "true-myth/maybe";
@@ -30,21 +29,20 @@ export function getSheetGidFromUrl(url: string) {
 function fetchStringifiedSheetJson(
   id: string,
   gid = 0
-): _.Effect<string, Error> {
+): Task.Task<string, Error> {
   // docs.google.com/spreadsheets/d/1nqOo7l1558YZaEXLKq_Ke-18IjyWOy5MBfFF90fbUHc/gviz/tq?tqx=out:json&tq&gid=0
   const apiUrl = `https://corsproxy.io/?url=https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json&tq&gid=${gid}`;
 
-  return _.gen(function* () {
-    const response = yield* _.tryPromise({
-      try: () => fetch(apiUrl),
-      catch: () => new Error("Data fetch error"),
-    });
-    const responseText = yield* _.tryPromise({
-      try: () => response.text(),
-      catch: () => new Error("Data read error"),
-    });
-    return responseText;
-  });
+  const fetchResponse = Task.safelyTryOrElse(
+    () => new Error("Data fetch error"),
+    () => fetch(apiUrl)
+  );
+  return fetchResponse.andThen((response) =>
+    Task.safelyTryOrElse(
+      () => new Error("Data read error"),
+      () => response.text()
+    )
+  );
 }
 
 /* 3. Parse raw sheet data */
@@ -74,20 +72,23 @@ const sheetJsonSchema = z.object({
 
 type SheetJson = z.infer<typeof sheetJsonSchema>;
 
-function parseSheetJson(text: string): _.Effect<SheetJson, Error> {
-  return _.gen(function* () {
-    const rawSheetContent = yield* _.fromNullable(
-      text.match(/google\.visualization\.Query\.setResponse\((.*)\);/)?.at(1)
-    );
+function parseSheetJson(text: string): Result.Result<SheetJson, Error> {
+  const rawMatch = text
+    .match(/google\.visualization\.Query\.setResponse\((.*)\);/)
+    ?.at(1);
+  if (rawMatch === undefined) {
+    return err(new Error("Invalid sheet response format"));
+  }
 
-    const data = yield* _.try({
-      try: () => JSON.parse(rawSheetContent),
-      catch: () => new Error("JSON parse error"),
-    });
+  const parsed = Result.tryOrElse(
+    () => new Error("JSON parse error"),
+    () => JSON.parse(rawMatch)
+  );
 
+  return parsed.andThen((data) => {
     const parsed = sheetJsonSchema.safeParse(data);
-    if (!parsed.success) return yield* _.fail(new Error(parsed.error.message));
-    return parsed.data;
+    if (!parsed.success) return err(new Error(parsed.error.message));
+    return ok(parsed.data);
   });
 }
 
@@ -102,36 +103,28 @@ export type SheetRecords = z.infer<typeof sheetRecordsSchema>;
 type Row = z.infer<typeof rowSchema>;
 
 function normalizeRow(row: Row): unknown[] {
-  return pipe(
-    row.c.map((c) => c?.v)
-    // A.reverse,
-    // // Removes blank items at the end
-    // A.dropWhile((v) => v !== null),
-    // A.reverse
-  );
+  return row.c.map((c) => c?.v);
 }
 
 //
 
-function sheetJsonToRecords(data: SheetJson): _.Effect<SheetRecords, Error> {
+function sheetJsonToRecords(
+  data: SheetJson
+): Result.Result<SheetRecords, Error> {
   let columns: string[] = [];
 
   if (data.table.parsedNumHeaders === 1) {
     columns = data.table.cols.map((col) => col.label.trim());
-  }
-  //
-  else if (data.table.parsedNumHeaders === 0) {
+  } else if (data.table.parsedNumHeaders === 0) {
     const firstRow = data.table.rows.at(0);
-    if (!firstRow) return _.fail(new Error("No rows found"));
+    if (!firstRow) return err(new Error("No rows found"));
     columns = normalizeRow(firstRow).map((value) => {
       const parsed = z.string().safeParse(value);
       if (!parsed.success) return "";
       return parsed.data;
     });
-  }
-  //
-  else {
-    return _.fail(new Error("Invalid number of headers"));
+  } else {
+    return err(new Error("Invalid number of headers"));
   }
 
   const startIndex = data.table.parsedNumHeaders === 1 ? 0 : 1;
@@ -141,29 +134,22 @@ function sheetJsonToRecords(data: SheetJson): _.Effect<SheetRecords, Error> {
     .map(normalizeRow)
     .map((row) =>
       row
-        .map((value, index) => Tuple.make(columns[index], value))
-        .filter(([key, _]) => S.isNonEmpty(key))
+        .map((value, index) => [columns[index], value] as const)
+        .filter(([key]) => key.length > 0)
     )
     .map(Object.fromEntries);
 
   const parsed = sheetRecordsSchema.safeParse(sheetData);
-  if (!parsed.success) return _.fail(new Error(parsed.error.message));
+  if (!parsed.success) return err(new Error(parsed.error.message));
 
-  return _.succeed(parsed.data);
+  return ok(parsed.data);
 }
 
 export function getSheetRecords(
   sheetId: string,
   gid = 0
 ): Task.Task<SheetRecords, Error> {
-  return Task.safelyTryOrElse(
-    (e) => e as Error,
-    () =>
-      pipe(
-        fetchStringifiedSheetJson(sheetId, gid),
-        _.andThen(parseSheetJson),
-        _.andThen(sheetJsonToRecords),
-        _.runPromise
-      )
-  );
+  return fetchStringifiedSheetJson(sheetId, gid)
+    .andThen((text) => Task.fromResult(parseSheetJson(text)))
+    .andThen((data) => Task.fromResult(sheetJsonToRecords(data)));
 }
