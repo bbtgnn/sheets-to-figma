@@ -3,7 +3,11 @@ import "./utils/url-polyfill";
 //
 
 import { config } from "./logic/config";
-import { propertiesHandlers } from "./logic/properties";
+import {
+  runPreloaders,
+  applyEdit,
+  propertyDefinitions,
+} from "./logic/properties";
 import type { Selection } from "./logic/types";
 import type { SheetRecords } from "./logic/fetch";
 
@@ -13,7 +17,6 @@ import * as Comlink from "comlink";
 import { uiEndpoint } from "figma-comlink";
 import type { UiApi } from "./ui.svelte";
 import * as Result from "true-myth/result";
-import * as Task from "true-myth/task";
 import { setupCloseMessageListener } from "./logic/close";
 import { nestifyObject } from "nestify-anything";
 
@@ -82,10 +85,13 @@ const api = {
 
     // Merge (insertChild + sequential order for low-end devices)
 
-    const result: {
-      copy: SceneNode;
-      edits: ReturnType<typeof editNodeProperty>[];
-    }[] = [];
+    type EditItem = {
+      node: SceneNode;
+      propertyName: string;
+      propertyValue: unknown;
+    };
+
+    const result: { copy: SceneNode; editItems: EditItem[] }[] = [];
     for (const selectedNode of selectedNodes) {
       for (let index = 0; index < cleanedData.length; index++) {
         const copyEdits = cleanedData[index];
@@ -102,7 +108,7 @@ const api = {
 
         // TODO - First swap instance, then apply edits
 
-        const edits = Object.entries(copyEdits)
+        const editItems: EditItem[] = Object.entries(copyEdits)
           .map(([nodeName, nodeEdits]) => {
             let nodesToEdit: SceneNode[] = [];
             if (copy.name == nodeName) nodesToEdit.push(copy);
@@ -116,16 +122,17 @@ const api = {
             };
           })
           .filter(({ nodeToEdit }) => nodeToEdit.length > 0)
-          .map(({ nodeToEdit, nodeEdits }) =>
+          .flatMap(({ nodeToEdit, nodeEdits }) =>
             Object.entries(nodeEdits).flatMap(([propertyName, propertyValue]) =>
-              nodeToEdit.map((node) =>
-                editNodeProperty(node, propertyName, propertyValue)
-              )
+              nodeToEdit.map((node) => ({
+                node,
+                propertyName,
+                propertyValue,
+              }))
             )
-          )
-          .flat();
+          );
 
-        result.push({ copy: copy as SceneNode, edits });
+        result.push({ copy: copy as SceneNode, editItems });
       }
     }
 
@@ -133,9 +140,13 @@ const api = {
     figma.viewport.scrollAndZoomIntoView(copies);
     figma.currentPage.selection = copies;
 
-    const operations = result.map(({ edits }) => edits).flat();
-    const results = await Promise.all(operations.map((t) => t));
-    return results.filter((r) => r.isErr).map((r) => r.error.message);
+    const allEditItems = result.flatMap(({ editItems }) => editItems);
+    const context = await runPreloaders(allEditItems, propertyDefinitions);
+
+    const results = allEditItems.map(({ node, propertyName, propertyValue }) =>
+      applyEdit(node, propertyName, propertyValue, context)
+    );
+    return results.filter((r): r is Result.Err<void, Error> => r.isErr).map((r) => r.error.message);
   },
 };
 
@@ -174,28 +185,3 @@ function getSelection(): Selection {
   }));
 }
 
-//
-
-function editNodeProperty(
-  node: SceneNode,
-  property: string,
-  value: unknown
-): Task.Task<void, Error> {
-  const handler = propertiesHandlers[property];
-  if (!handler) {
-    return Task.reject(new Error(`No handler for property "${property}"`));
-  }
-  return Task.safelyTryOrElse(
-    (e) => {
-      console.warn(
-        `Error setting property "${property}" on node "${node.name}"`,
-        handler,
-        e
-      );
-      return new Error(
-        `${node.name}: Error setting property "${property}"`
-      ) as Error;
-    },
-    () => handler(node, value) as Promise<void>
-  );
-}
