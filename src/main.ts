@@ -1,5 +1,4 @@
 import "./utils/url-polyfill";
-import "./utils/bigint-polyfill";
 
 //
 
@@ -7,14 +6,14 @@ import { config } from "./logic/config";
 import { propertiesHandlers } from "./logic/properties";
 import type { Selection } from "./logic/types";
 import type { SheetRecords } from "./logic/fetch";
-import { Record } from "effect";
 
 /* Comlink setup */
 
 import * as Comlink from "comlink";
 import { uiEndpoint } from "figma-comlink";
 import type { UiApi } from "./ui.svelte";
-import { pipe, Effect as _ } from "effect";
+import * as Result from "true-myth/result";
+import * as Task from "true-myth/task";
 import { setupCloseMessageListener } from "./logic/close";
 import { nestifyObject } from "nestify-anything";
 
@@ -67,12 +66,14 @@ const api = {
 
     const cleanedData = data
       .map((record) =>
-        Record.filter(record, (_, key) => {
-          const dotCount = (key.match(/\./g) || []).length;
-          if (dotCount !== 1) return false;
-          const matches = key.match(/\w+\.\w+/g);
-          return matches !== null && matches.length > 0;
-        })
+        Object.fromEntries(
+          Object.entries(record).filter(([key]) => {
+            const dotCount = (key.match(/\./g) || []).length;
+            if (dotCount !== 1) return false;
+            const matches = key.match(/\w+\.\w+/g);
+            return matches !== null && matches.length > 0;
+          })
+        )
       )
       .map((record) => nestifyObject(record)) as Record<
       string,
@@ -133,11 +134,8 @@ const api = {
     figma.currentPage.selection = copies;
 
     const operations = result.map(({ edits }) => edits).flat();
-    return await pipe(
-      _.partition(operations, (o) => o),
-      _.map(([failures, _]) => failures.map((f) => f.message)),
-      _.runPromise
-    );
+    const results = await Promise.all(operations.map((t) => t));
+    return results.filter((r) => r.isErr).map((r) => r.error.message);
   },
 };
 
@@ -178,24 +176,26 @@ function getSelection(): Selection {
 
 //
 
-function editNodeProperty(node: SceneNode, property: string, value: unknown) {
-  const transformation = pipe(
-    _.fromNullable(propertiesHandlers[property]),
-    _.flatMap((handler) =>
-      _.tryPromise({
-        try: () => handler(node, value) as Promise<void>,
-        catch: (e) => {
-          console.warn(
-            `Error setting property "${property}" on node "${node.name}"`,
-            handler,
-            e
-          );
-          return new Error(
-            `${node.name}: Error setting property "${property}"`
-          );
-        },
-      })
-    )
+function editNodeProperty(
+  node: SceneNode,
+  property: string,
+  value: unknown
+): Task.Task<void, Error> {
+  const handler = propertiesHandlers[property];
+  if (!handler) {
+    return Task.reject(new Error(`No handler for property "${property}"`));
+  }
+  return Task.safelyTryOrElse(
+    (e) => {
+      console.warn(
+        `Error setting property "${property}" on node "${node.name}"`,
+        handler,
+        e
+      );
+      return new Error(
+        `${node.name}: Error setting property "${property}"`
+      ) as Error;
+    },
+    () => handler(node, value) as Promise<void>
   );
-  return transformation;
 }
