@@ -31,11 +31,17 @@ function fetchStringifiedSheetJson(
   gid = 0
 ): Task.Task<string, Error> {
   // docs.google.com/spreadsheets/d/1nqOo7l1558YZaEXLKq_Ke-18IjyWOy5MBfFF90fbUHc/gviz/tq?tqx=out:json&tq&gid=0
-  const apiUrl = `https://corsproxy.io/?url=https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json&tq&gid=${gid}`;
+  // Append cache-busting param so browser and CORS proxy return fresh data
+  const cacheBuster = Date.now();
+  const apiUrl = `https://corsproxy.io/?url=${encodeURIComponent(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json&tq&gid=${gid}&_=${cacheBuster}`)}`;
 
   const fetchResponse = Task.safelyTryOrElse(
     () => new Error("Data fetch error"),
-    () => fetch(apiUrl)
+    () =>
+      fetch(apiUrl, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+      })
   );
   return fetchResponse.andThen((response) =>
     Task.safelyTryOrElse(
@@ -141,6 +147,7 @@ function sheetJsonToRecords(
 
   const parsed = sheetRecordsSchema.safeParse(sheetData);
   if (!parsed.success) return err(new Error(parsed.error.message));
+  console.log(parsed.data);
 
   return ok(parsed.data);
 }
