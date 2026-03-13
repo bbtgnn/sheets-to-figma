@@ -30,13 +30,7 @@ function fetchStringifiedSheetJson(
   id: string,
   gid = 0
 ): Task.Task<string, Error> {
-  // docs.google.com/spreadsheets/d/1nqOo7l1558YZaEXLKq_Ke-18IjyWOy5MBfFF90fbUHc/gviz/tq?tqx=out:json&tq&gid=0
-  // Append cache-busting param so browser and CORS proxy return fresh data
-  const cacheBuster = Date.now();
-  const apiUrl = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json&tq&gid=${gid}&_=${cacheBuster}`;
-  // const apiUrl = `https://corsproxy.io/?url=${encodeURIComponent(
-  //   `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json&tq&gid=${gid}&_=${cacheBuster}`
-  // )}`;
+  const apiUrl = `https://fetch-spreadsheet.bbt-gnn.workers.dev/?id=${id}&gid=${gid}`;
 
   const fetchResponse = Task.safelyTryOrElse(
     () => new Error("Data fetch error"),
