@@ -41,8 +41,8 @@ function fetchStringifiedSheetJson(
     () => new Error("Data fetch error"),
     () =>
       fetch(apiUrl, {
+        // no custom headers so the request stays "simple" and avoids CORS preflight
         cache: "no-store",
-        headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
       })
   );
   return fetchResponse.andThen((response) =>
