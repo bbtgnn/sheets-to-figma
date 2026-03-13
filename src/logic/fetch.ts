@@ -30,7 +30,15 @@ function fetchStringifiedSheetJson(
   id: string,
   gid = 0
 ): Task.Task<string, Error> {
-  const apiUrl = `https://fetch-spreadsheet.bbt-gnn.workers.dev/?id=${id}&gid=${gid}`;
+  let url = import.meta.env.VITE_SPREADSHEET_FETCH_API;
+  if (!url) {
+    return Task.reject(new Error("Missing VITE_SPREADSHEET_FETCH_API"));
+  }
+  if (!url.endsWith("/")) {
+    url += "/";
+  }
+
+  const apiUrl = `${url}?id=${id}&gid=${gid}`;
 
   const fetchResponse = Task.safelyTryOrElse(
     () => new Error("Data fetch error"),
