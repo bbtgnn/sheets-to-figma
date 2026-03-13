@@ -287,7 +287,7 @@
 
 {#snippet number(n: number)}
   <div
-    class="text-white bg-blue-600 size-12 flex items-center justify-center rounded-full"
+    class="text-white bg-blue-600 size-12 flex items-center justify-center rounded-full shrink-0"
   >
     <p>
       {n}
