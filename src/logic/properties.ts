@@ -1,6 +1,15 @@
 import { z } from "zod";
 import type { ZodType } from "zod";
 import { isWebUri } from "valid-url";
+import {
+  buildRotationAroundPoint,
+  getConstraintPivotLocal,
+  getConstraintPivotParent,
+  getEffectiveTransform,
+  isIdentityTransform,
+  setTranslation,
+  transformMultiply,
+} from "./transform";
 import { changeSolidPaintColor, clone, isHexColor } from "./utils";
 import * as Result from "true-myth/result";
 
@@ -40,14 +49,24 @@ const _propertyDefinitions = {
   tx: property({
     schema: z.number(),
     apply: (node, value) => {
-      node.x = node.x + value;
+      const t = getEffectiveTransform(node);
+      if (isIdentityTransform(t)) {
+        node.x = node.x + value;
+      } else {
+        node.relativeTransform = setTranslation(t, t[0][2] + value, t[1][2]);
+      }
     },
   }),
 
   ty: property({
     schema: z.number(),
     apply: (node, value) => {
-      node.y = node.y + value;
+      const t = getEffectiveTransform(node);
+      if (isIdentityTransform(t)) {
+        node.y = node.y + value;
+      } else {
+        node.relativeTransform = setTranslation(t, t[0][2], t[1][2] + value);
+      }
     },
   }),
 
@@ -77,7 +96,11 @@ const _propertyDefinitions = {
       node.resize(node.width, value);
       if (!("constraints" in node)) return;
       const { vertical } = node.constraints;
-      if (vertical === "CENTER" || vertical === "STRETCH" || vertical === "SCALE")
+      if (
+        vertical === "CENTER" ||
+        vertical === "STRETCH" ||
+        vertical === "SCALE"
+      )
         node.y = node.y + delta / 2;
       else if (vertical === "MAX") node.y = node.y + delta;
     },
@@ -86,33 +109,29 @@ const _propertyDefinitions = {
   rotation: property({
     schema: z.number(),
     apply: (node, value) => {
-      // https://gist.github.com/LukeFinch/d3c93d79a9dcd6970358be1d17838318
-      const theta = value * (Math.PI / 180);
-      let cx = node.x;
-      let cy = node.y;
-      if ("constraints" in node) {
-        const { horizontal, vertical } = node.constraints;
-        if (horizontal === "MAX") cx = node.x + node.width;
-        else if (horizontal === "CENTER") cx = node.x + node.width / 2;
-        if (vertical === "MAX") cy = node.y + node.height;
-        else if (vertical === "CENTER") cy = node.y + node.height / 2;
-      }
-      const newx =
-        Math.cos(theta) * node.x +
-        node.y * Math.sin(theta) -
-        cy * Math.sin(theta) -
-        cx * Math.cos(theta) +
-        cx;
-      const newy =
-        -Math.sin(theta) * node.x +
-        cx * Math.sin(theta) +
-        node.y * Math.cos(theta) -
-        cy * Math.cos(theta) +
-        cy;
-      node.relativeTransform = [
-        [Math.cos(theta), Math.sin(theta), newx],
-        [-Math.sin(theta), Math.cos(theta), newy],
-      ];
+      const transform = getEffectiveTransform(node);
+      const pivotLocal = getConstraintPivotLocal(node);
+      const pivotParent = getConstraintPivotParent(transform, pivotLocal);
+      const R = buildRotationAroundPoint(value, pivotParent);
+      node.relativeTransform = transformMultiply(R, transform);
+    },
+  }),
+
+  scale: property({
+    schema: z.number(),
+    apply: (node, value) => {
+      if (!("resize" in node)) return;
+      const transform = getEffectiveTransform(node);
+      const pivotLocal = getConstraintPivotLocal(node);
+      const pivotParent = getConstraintPivotParent(transform, pivotLocal);
+      node.resize(node.width * value, node.height * value);
+      const newPivotLocal = getConstraintPivotLocal(node);
+      const [[m00, m01], [m10, m11]] = transform;
+      const newTx =
+        pivotParent.x - (m00 * newPivotLocal.px + m01 * newPivotLocal.py);
+      const newTy =
+        pivotParent.y - (m10 * newPivotLocal.px + m11 * newPivotLocal.py);
+      node.relativeTransform = setTranslation(transform, newTx, newTy);
     },
   }),
 
@@ -167,7 +186,7 @@ const _propertyDefinitions = {
     },
     apply: (node, value, ctx) => {
       if (!("fills" in node)) return;
-      const imageMap = ctx as Map<string, Image> | undefined;
+      const imageMap = ctx;
 
       if (isWebUri(value)) {
         const image = imageMap?.get(value);
@@ -243,6 +262,18 @@ const _propertyDefinitions = {
     },
   }),
 
+  component: property({
+    schema: z.string(),
+    apply: (node, value) => {
+      if (node.type !== "INSTANCE") return;
+      const componentNode = figma.currentPage.findOne(
+        (n) => n.name == value && n.type == "COMPONENT"
+      );
+      if (componentNode?.type !== "COMPONENT") return;
+      node.swapComponent(componentNode);
+    },
+  }),
+
   hidden: property({
     schema: z.boolean(),
     apply: (node, value) => {
@@ -307,9 +338,7 @@ export function applyEdit(
   const parsed = def.schema.safeParse(value);
   if (!parsed.success) {
     return Result.err(
-      new Error(
-        `${node.name}: Invalid value for property "${propertyName}"`
-      )
+      new Error(`${node.name}: Invalid value for property "${propertyName}"`)
     );
   }
   try {
