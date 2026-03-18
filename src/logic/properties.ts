@@ -10,7 +10,12 @@ import {
   setTranslation,
   transformMultiply,
 } from "./transform";
-import { changeSolidPaintColor, clone, isHexColor } from "./utils";
+import {
+  clone,
+  isHexColor,
+  parseSolidPaintFromValue,
+  replaceOrAppendSolidPaint,
+} from "./utils";
 import * as Result from "true-myth/result";
 
 export interface PropertyDefinition<T, Ctx = void> {
@@ -20,7 +25,7 @@ export interface PropertyDefinition<T, Ctx = void> {
 }
 
 export function property<T, Ctx = void>(
-  def: PropertyDefinition<T, Ctx>
+  def: PropertyDefinition<T, Ctx>,
 ): PropertyDefinition<T, Ctx> {
   return def;
 }
@@ -180,7 +185,7 @@ const _propertyDefinitions = {
           } catch (error) {
             console.error(url, error);
           }
-        })
+        }),
       );
       return imageMap;
     },
@@ -197,23 +202,12 @@ const _propertyDefinitions = {
         } else {
           console.warn(`Fill image not preloaded: ${value}`);
         }
+        return;
       }
 
-      const nodeFills = node.fills == figma.mixed ? [] : clone(node.fills);
-      if (isHexColor(value)) {
-        const firstSolidPaint = nodeFills.find((f) => f.type == "SOLID");
-        if (firstSolidPaint) {
-          const i = nodeFills.indexOf(firstSolidPaint);
-          node.fills = [
-            ...nodeFills.slice(0, i),
-            changeSolidPaintColor(firstSolidPaint, value),
-            ...nodeFills.slice(i + 1),
-          ];
-        } else {
-          nodeFills.push(figma.util.solidPaint(value));
-          node.fills = nodeFills;
-        }
-      }
+      const nodeFills = node.fills == figma.mixed ? [] : node.fills;
+      const paint = parseSolidPaintFromValue(value);
+      if (paint) node.fills = replaceOrAppendSolidPaint(nodeFills, paint);
     },
   }),
 
@@ -221,21 +215,10 @@ const _propertyDefinitions = {
     schema: z.string(),
     apply: (node, value) => {
       if (!("strokeWeight" in node)) return;
-      if (!isHexColor(value)) return;
+      const paint = parseSolidPaintFromValue(value);
+      if (!paint) return;
       if (node.strokes.length == 0) node.strokeWeight = 2;
-      const nodeStrokes = clone(node.strokes);
-      const firstSolidPaint = nodeStrokes.find((s) => s.type == "SOLID");
-      if (firstSolidPaint) {
-        const i = nodeStrokes.indexOf(firstSolidPaint);
-        node.strokes = [
-          ...nodeStrokes.slice(0, i),
-          changeSolidPaintColor(firstSolidPaint, value),
-          ...nodeStrokes.slice(i + 1),
-        ];
-      } else {
-        nodeStrokes.push(figma.util.solidPaint(value));
-        node.strokes = nodeStrokes;
-      }
+      node.strokes = replaceOrAppendSolidPaint(node.strokes, paint);
     },
   }),
 
@@ -255,7 +238,7 @@ const _propertyDefinitions = {
     apply: (node, value) => {
       if (node.type !== "INSTANCE") return;
       const componentNode = figma.currentPage.findOne(
-        (n) => n.name == value && n.type == "COMPONENT"
+        (n) => n.name == value && n.type == "COMPONENT",
       );
       if (componentNode?.type !== "COMPONENT") return;
       node.swapComponent(componentNode);
@@ -267,7 +250,7 @@ const _propertyDefinitions = {
     apply: (node, value) => {
       if (node.type !== "INSTANCE") return;
       const componentNode = figma.currentPage.findOne(
-        (n) => n.name == value && n.type == "COMPONENT"
+        (n) => n.name == value && n.type == "COMPONENT",
       );
       if (componentNode?.type !== "COMPONENT") return;
       node.swapComponent(componentNode);
@@ -296,7 +279,7 @@ export const propertyDefinitions = _propertyDefinitions as Record<
 
 export async function runPreloaders(
   editItems: EditItem[],
-  definitions: Record<string, PropertyDefinition<unknown, unknown>>
+  definitions: Record<string, PropertyDefinition<unknown, unknown>>,
 ): Promise<Record<string, unknown>> {
   const byProperty = new Map<
     string,
@@ -320,7 +303,7 @@ export async function runPreloaders(
       if (!def?.preload) return;
       const edits = items.map(({ node, parsed }) => ({ node, value: parsed }));
       context[propName] = await def.preload(edits);
-    })
+    }),
   );
   return context;
 }
@@ -329,7 +312,7 @@ export function applyEdit(
   node: SceneNode,
   propertyName: string,
   value: unknown,
-  context: Record<string, unknown>
+  context: Record<string, unknown>,
 ): Result.Result<void, Error> {
   const def = propertyDefinitions[propertyName];
   if (!def) {
@@ -338,7 +321,7 @@ export function applyEdit(
   const parsed = def.schema.safeParse(value);
   if (!parsed.success) {
     return Result.err(
-      new Error(`${node.name}: Invalid value for property "${propertyName}"`)
+      new Error(`${node.name}: Invalid value for property "${propertyName}"`),
     );
   }
   try {
@@ -348,12 +331,12 @@ export function applyEdit(
     console.warn(
       `Error setting property "${propertyName}" on node "${node.name}"`,
       def,
-      e
+      e,
     );
     return Result.err(
       new Error(
-        `${node.name}: Error setting property "${propertyName}"`
-      ) as Error
+        `${node.name}: Error setting property "${propertyName}"`,
+      ) as Error,
     );
   }
 }
