@@ -246,7 +246,7 @@ const _propertyDefinitions = {
   }),
 
   component: property({
-    schema: z.string(),
+    schema: z.coerce.string(),
     apply: (node, value) => {
       if (node.type !== "INSTANCE") return;
       const componentNode = figma.currentPage.findOne(
